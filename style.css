@@ -16,3 +16,7 @@
 @media(min-width:760px){.exercise-illustration{max-width:340px}.exercise-illustration img{height:200px}}
 
 .exercise-illustration.image-missing{min-height:80px;display:flex;flex-direction:column;justify-content:center}.exercise-illustration.image-missing img{display:none}.image-fallback{display:block;padding:18px;color:#8a3d25;font-size:.85rem}
+
+/* V15: exercise text and illustration remain visible on small screens */
+.exercise{align-items:start}.exercise-illustration{width:100%;min-width:0}.exercise-copy{min-width:0}.exercise-description{display:block!important;visibility:visible!important;color:var(--ink)!important;font-size:13px!important;line-height:1.55!important;overflow-wrap:anywhere}.exercise-illustration img{max-width:100%;object-fit:contain}.image-fallback{display:block;color:#8a3d25;padding:8px;font-size:12px}
+@media(max-width:520px){.exercise{grid-template-columns:1fr}.exercise-illustration{max-width:100%;margin-bottom:8px}.exercise-illustration img{height:auto;max-height:250px;min-height:130px}.exercise-copy{width:100%}}
