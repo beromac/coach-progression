@@ -20,3 +20,16 @@
 /* V15: exercise text and illustration remain visible on small screens */
 .exercise{align-items:start}.exercise-illustration{width:100%;min-width:0}.exercise-copy{min-width:0}.exercise-description{display:block!important;visibility:visible!important;color:var(--ink)!important;font-size:13px!important;line-height:1.55!important;overflow-wrap:anywhere}.exercise-illustration img{max-width:100%;object-fit:contain}.image-fallback{display:block;color:#8a3d25;padding:8px;font-size:12px}
 @media(max-width:520px){.exercise{grid-template-columns:1fr}.exercise-illustration{max-width:100%;margin-bottom:8px}.exercise-illustration img{height:auto;max-height:250px;min-height:130px}.exercise-copy{width:100%}}
+
+/* V16 — priorité aux illustrations : grandes images, texte sous l'image */
+.exercise{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:14px!important;padding:14px!important}
+.exercise-illustration{display:block!important;width:100%!important;max-width:none!important;margin:0!important;border-radius:16px!important;background:#fff!important}
+.exercise-illustration img{display:block!important;width:100%!important;height:clamp(300px,72vw,560px)!important;max-height:none!important;min-height:300px!important;object-fit:contain!important;object-position:center!important;background:#fff!important}
+.exercise-illustration figcaption{font-size:12px!important;padding:10px!important}
+.exercise-copy{display:block!important;width:100%!important;min-width:0!important}
+.exercise-copy h3{font-size:19px!important;line-height:1.3!important;margin-bottom:8px!important}
+.exercise-description{font-size:16px!important;line-height:1.65!important;margin:10px 0!important}
+.exercise-copy p,.exercise-copy .meta{font-size:14px!important;line-height:1.6!important}
+.exercise-actions{gap:10px!important}
+.exercise-actions button,.exercise-actions label{font-size:14px!important;padding:10px!important}
+@media(min-width:760px){main{max-width:900px}.exercise{padding:20px!important}.exercise-illustration img{height:520px!important}.exercise-copy h3{font-size:22px!important}.exercise-description{font-size:17px!important}}
