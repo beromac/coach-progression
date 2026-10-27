@@ -61,3 +61,6 @@ Le projet embarque `human-base-rigged.glb`, un modèle humain glTF 2.0 riggé av
 
 ## Version V13 — fiches illustrées statiques
 Cette version conserve les fonctionnalités et le lecteur GLB de la V10, mais remplace les petites animations de personnages affichées sur les fiches d'exercices par des illustrations statiques et des consignes. Les illustrations sont des recadrages de la maquette visuelle « image 1 » choisie par l'utilisateur, pas des scans certifiés des pages du livre. Elles servent de repères visuels généraux ; elles ne garantissent pas une correspondance exacte pour chacun des 35 étirements. Les images sont préchargées pour un usage hors connexion après installation.
+
+## Version V17 — démonstrations animées par exercice
+Chaque exercice (42) a une démo animée en boucle (`demo.js` moteur, `demo-data.js` poses) : mannequin articulé, zones travaillées en orange, étapes cliquables, pause (toucher l'image) et ralenti (×1/×0.5/×0.25). Les mouvements à deux côtés alternent automatiquement. Tout est vectoriel et hors ligne ; les anciennes images PNG ont été supprimées. Ce sont des illustrations pédagogiques simplifiées, à comparer au livre.
