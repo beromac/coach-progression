@@ -43,49 +43,219 @@ const exercises=[
 {id:'et34',name:'34. Étirement du mollet contre un appui',kind:'souplesse',zone:'Mollets · tendon d’Achille',desc:'Place l’avant du pied sur une cale basse et laisse le talon descendre progressivement, puis change de jambe.',sets:1,reps:20,tip:'Utilise un appui stable et évite de rebondir.'},
 {id:'et35',name:'35. Étirement du dessus du pied',kind:'souplesse',zone:'Dessus du pied · cheville',desc:'À genoux ou assis, place doucement le dessus du pied au sol et applique seulement une légère pression si la position est confortable.',sets:1,reps:15,tip:'Ne force pas sur les orteils ni sur la cheville.'}
 ];
-const defaultState={level:'1',stage:'',history:[],setsDone:0,mobilityDone:0,custom:[],warmup:false};let state;try{state={...defaultState,...JSON.parse(localStorage.getItem('coachProgressionData')||'{}')}}catch{state={...defaultState}};let timerSecs=30,timerInt=null;
-function save(){localStorage.setItem('coachProgressionData',JSON.stringify(state));renderStats()}
-function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2400)}
-function illustrationFor(e){
- const id=(e?.id||'').toLowerCase(), n=(e?.name||'').toLowerCase(), z=(e?.zone||'').toLowerCase();
- if(/pompe|push/.test(id+' '+n)) return 'pompes.png';
- if(/squat/.test(id+' '+n)) return 'squat.png';
- if(/ischio|arrière des cuisses|jambe tendue|flexion avant|mollet/.test(id+' '+n+' '+z)) return /mollet/.test(id+' '+n+' '+z)?'mollets.png':'ischios.png';
- if(/quadriceps|avant de la cuisse|dessus du pied/.test(id+' '+n+' '+z)) return 'quadri.png';
- if(/adducteur|aine|intérieur des cuisses|écart des jambes|hanche ouverte/.test(id+' '+n+' '+z)) return 'adducteurs.png';
- if(/psoas|fente basse|fléchisseurs de hanche/.test(id+' '+n+' '+z)) return 'psoas.png';
- if(/nuque|cou|tête/.test(id+' '+n+' '+z)) return 'cou.png';
- if(/épaule|bras|poignet|poitrine/.test(id+' '+n+' '+z)) return 'epaules.png';
- if(/dos|rotation|colonne|gainage/.test(id+' '+n+' '+z)) return 'dos.png';
- if(/tronc|latéral|inclinaison/.test(id+' '+n+' '+z)) return 'tronc.png';
- return 'ischios.png';
+/* ===== compléments de données : groupes d'étirements et nouveaux échauffements ===== */
+const GRP={haut:[1,2,3,4,5,6,10,11,14,15],milieu:[7,8,9,12,13,19,20,29],bas:[16,17,18,21,22,23,24,25,26,27,28,30,31,32,33,34,35]};
+exercises.forEach(e=>{const m=/^et(\d+)$/.exec(e.id);if(m){e.n=+m[1];e.grp=Object.keys(GRP).find(g=>GRP[g].includes(e.n))}});
+exercises.find(e=>e.id==='gainage').unit='s';
+const W=(id,name,zone,desc,tip,reps=30)=>({id,name,kind:'echauffement',zone,desc,tip,sets:1,reps});
+exercises.push(
+W('jumping','Jumping jacks','Corps entier · cardio','Pieds joints, bras le long du corps. Saute en écartant les jambes et en levant les bras au-dessus de la tête, puis reviens à la position de départ. Enchaîne à un rythme régulier.','Atterris sur la pointe des pieds, genoux souples. Version sans saut : pose un pied après l’autre.'),
+W('montees','Montées de genoux sur place','Hanches · cuisses · cardio','Debout, monte un genou à hauteur de hanche puis l’autre, comme si tu courais sur place. Balance les bras en opposition.','Garde le buste droit et le ventre gainé. Commence lentement, accélère progressivement.'),
+W('talons','Talons aux fesses','Arrière des cuisses · mollets','Debout, ramène alternativement chaque talon vers la fesse en courant sur place. Les genoux restent près l’un de l’autre.','Ne cambre pas le dos. Pose-toi sur l’avant du pied.'),
+W('rot_tronc','Rotations du tronc','Taille · colonne','Pieds écartés, bras écartés à l’horizontale. Tourne le buste d’un côté puis de l’autre en gardant le bassin face à toi.','Mouvement fluide, sans à-coup. Regarde dans la direction de la rotation.'),
+W('chat_vache','Dos rond / dos creux','Colonne · dos · abdominaux','À quatre pattes, mains sous les épaules et genoux sous les hanches. Creuse doucement le dos en regardant devant, puis arrondis-le en rentrant le menton.','Amplitude confortable. Respire : inspire en creusant, expire en arrondissant.'),
+W('pointes','Montées sur la pointe des pieds','Mollets · chevilles','Debout, monte lentement sur la pointe des pieds, marque une courte pause en haut, puis redescends en contrôlant.','Appuie-toi sur un mur si tu as besoin d’équilibre. Garde les genoux tendus mais pas verrouillés.'),
+W('fentes','Fentes dynamiques alternées','Cuisses · fessiers · hanches','Fais un grand pas en avant, fléchis les deux genoux sans que le genou arrière touche le sol, puis pousse pour revenir. Alterne les jambes.','Le genou avant reste au-dessus de la cheville. Garde le buste droit.'),
+W('ouvertures','Ouvertures de bras','Pectoraux · épaules','Debout, croise les bras devant la poitrine puis ouvre-les grand vers l’arrière en sortant la poitrine. Répète en rythme.','Garde les épaules basses et le dos droit, sans cambrer.')
+);
+const WORDER=['jumping','poignets','cercles','ouvertures','rot_tronc','chat_vache','hanche','pointes','montees','talons','fentes'];
+exercises.forEach(e=>{if(e.kind==='echauffement')e.n=WORDER.indexOf(e.id)+1});
+
+/* ===== état ===== */
+const defaultState={level:'1',stage:'',history:[],setsDone:0,mobilityDone:0,warmupDone:0,custom:[],warmup:false,goals:{},rest:60,sound:true,session:{logs:{}},timed:{},pickOpen:{}};
+let state;try{state={...defaultState,...JSON.parse(localStorage.getItem('coachProgressionData')||'{}')}}catch{state={...defaultState}}
+function migrate(){
+  state.session=state.session&&state.session.logs?state.session:{logs:{}};state.goals=state.goals||{};state.pickOpen=state.pickOpen||{};state.timed=state.timed||{};
+  ['souplesse','echauffement'].forEach(k=>{const t=state.timed[k]=state.timed[k]||{};t.preset=t.preset||(k==='souplesse'?'haut':'express');t.custom=t.custom||[];t.dur=t.dur||{}});
+  if(!state._mig){if((state.mobilitySelected||[]).length){state.timed.souplesse.custom=state.mobilitySelected.slice();state.timed.souplesse.preset='perso'}Object.assign(state.timed.souplesse.dur,state.mobilityDurations||{});state._mig=1}
 }
-const APP_BASE=new URL('./',document.querySelector('script[src*=\"app.js\"]')?.src||document.baseURI);
-function avatar(e){return (window.Demo&&Demo.data&&Demo.data[e?.id])||!window.Demo?`<figure class="demo" data-ex="${e.id}"></figure>`:''}
-function exerciseCard(e,mode='training'){return `<article class="exercise">${avatar(e)}<div><h3>${e.name}</h3><p class="meta">${e.zone}</p><p>${e.desc}</p><p><b>À surveiller :</b> ${e.tip}</p>${mode==='training'?`<div class="exercise-actions"><label>Séries <input type="number" min="1" max="20" value="${e.sets||3}" data-sets="${e.id}"></label><label>Répétitions / durée (s) <input type="number" min="1" max="999" value="${e.reps||30}" data-reps="${e.id}"></label><label>Chrono / série (s) <input type="number" min="5" max="600" value="${(state.exerciseTimers||{})[e.id]||45}" data-exercise-duration="${e.id}"></label></div><div class="exercise-timer" data-exercise-timer="${e.id}"><div class="exercise-timer-stats"><span>Série <b data-current-set="${e.id}">1</b> / <b data-total-sets="${e.id}">${e.sets||3}</b></span><span>Répétitions : <b data-rep-count="${e.id}">0</b> / <b data-rep-goal="${e.id}">${e.reps||30}</b></span><strong data-exercise-clock="${e.id}">${formatClock((state.exerciseTimers||{})[e.id]||45)}</strong></div><p data-exercise-status="${e.id}">Prêt à commencer</p><div class="exercise-actions"><button class="primary-btn" data-exercise-start="${e.id}">Démarrer le chrono</button><button class="secondary" data-exercise-rep="${e.id}">+ 1 répétition</button><button class="secondary" data-exercise-side="${e.id}">Changer de côté</button><button class="secondary" data-exercise-setdone="${e.id}">Série terminée</button><button class="ghost" data-exercise-reset="${e.id}">Réinitialiser</button></div></div>`:`<div class="exercise-actions"><button class="secondary" data-select-mobility="${e.id}">Ajouter à ma séance</button></div>`}</div></article>`}
-function formatClock(seconds){seconds=Math.max(0,Number(seconds)||0);return `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`}
-function renderTraining(){const list=exercises.filter(e=>e.kind==='musculation').concat(state.custom||[]);$('#trainingList').innerHTML=list.map(e=>exerciseCard(e)).join('');list.forEach(e=>{if(!exerciseClocks[e.id])resetExerciseClock(e.id)});$('#level').value=state.level;$('#stage').value=state.stage||'';$('#sessionNote').value=state.note||'';$('#warmupDone').textContent=state.warmup?'Échauffement validé ✓':'Valider'}
-function renderMobility(){const selected=state.mobilitySelected||[];const host=$('#mobilityList');if(!host)return;const catalog=exercises.filter(e=>e.kind==='souplesse').sort((a,b)=>Number(a.id.replace('et',''))-Number(b.id.replace('et','')));host.innerHTML=catalog.length?`<section class="mobility-group"><h3>Exercices d’assouplissement</h3>${catalog.map(e=>`<article class="exercise">${avatar(e)}<div class="exercise-copy"><h3>${e.name}</h3><p class="meta">${e.zone}</p><p class="exercise-description">${e.desc}</p><p><b>Précaution :</b> ${e.tip}</p><div class="exercise-actions"><label><input type="checkbox" data-mobility-check="${e.id}" ${selected.includes(e.id)?'checked':''} style="width:auto"> Inclure</label><label>Durée (s)<input type="number" min="5" max="600" step="5" value="${(state.mobilityDurations||{})[e.id]||30}" data-mobility-duration="${e.id}"></label><button class="primary-btn" data-start-mobility="${e.id}">Lancer le chrono</button></div></div></article>`).join('')}</section>`:'<p class="muted">Aucun exercice n’a pu être chargé. Recharge la page ou vérifie que app.js est bien à la racine du dossier publié.</p>';$('#selectedMobilityCount').textContent=`${selected.length} exercice${selected.length===1?'':'s'}`;host.querySelectorAll('img').forEach(img=>img.addEventListener('error',()=>{const fig=img.closest('figure');if(fig&&!fig.querySelector('.image-fallback')){fig.classList.add('image-missing');fig.insertAdjacentHTML('beforeend','<span class="image-fallback">Image indisponible — le texte de l’exercice reste disponible.</span>')}},{once:true}));renderRoutine()}
-let routineIndex=0,routineInt=null,routineRemaining=30;function selectedRoutine(){return (state.mobilitySelected||[]).map(id=>exercises.find(e=>e.id===id)).filter(Boolean).sort((a,b)=>Number(a.id.replace('et',''))-Number(b.id.replace('et','')))}function beep(freq=880){if(!$('#soundEnabled')?.checked)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=new C(),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=.12;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.22);o.stop(ctx.currentTime+.23);o.onended=()=>ctx.close()}catch{}}
-function renderRoutine(){const list=selectedRoutine();if(routineIndex>=list.length)routineIndex=Math.max(0,list.length-1);const e=list[routineIndex];routineRemaining=e?Number((state.mobilityDurations||{})[e.id]||30):30;timerSecs=routineRemaining;timerRender();$('#routineCurrentName').textContent=e?e.name:'Sélectionne des exercices';const coachMove=$('#coach3dMove');if(coachMove){const nextMove=e&&/pompe/i.test(e.name)?'pushup':e&&/squat/i.test(e.name)?'squat':'stretch';if(coachMove.value!==nextMove){coachMove.value=nextMove;coachMove.dispatchEvent(new Event('change'));}const pose=$('#coach3dPose');if(pose&&e)pose.textContent='Démonstration liée à : '+e.name;}$('#routineCounter').textContent=`${list.length?routineIndex+1:0} / ${list.length}`;$('#routineProgress').style.width=list.length?`${((routineIndex+1)/list.length)*100}%`:'0%';$('#timerStart').textContent='Démarrer la séance'}function stopRoutine(){if(routineInt){clearInterval(routineInt);routineInt=null}}function advanceRoutine(){stopRoutine();const list=selectedRoutine();if(!list.length){toast('Sélectionne au moins un assouplissement.');return}beep(660);if(routineIndex<list.length-1){routineIndex++;renderRoutine();toast('Changement : '+list[routineIndex].name)}else{beep(1100);$('#routineCurrentName').textContent='Séance terminée !';$('#timerStart').textContent='Recommencer';toast('Bravo, tous les exercices sont terminés.')}}
-function renderLibrary(){const q=($('#searchExercise')?.value||'').toLowerCase();$('#libraryList').innerHTML=exercises.filter(e=>(e.name+' '+e.zone+' '+e.desc).toLowerCase().includes(q)).sort((a,b)=>a.kind==='souplesse'&&b.kind==='souplesse'?Number(a.id.replace('et',''))-Number(b.id.replace('et','')):0).map(e=>`<article class="exercise">${avatar(e)}<div><h3>${e.name}</h3><p class="meta">${e.kind==='souplesse'?'Assouplissement':e.kind==='echauffement'?'Échauffement':'Musculation'} · ${e.zone}</p><p>${e.desc}</p><p><b>Conseil :</b> ${e.tip}</p></div></article>`).join('')}
-function renderStats(){const sessions=state.history.filter(h=>h.type==='musculation').length;const sets=state.setsDone||0;$('#sessionCount').textContent=`${sessions} séance${sessions>1?'s':''}`;$('#totalSets').textContent=sets;$('#mobilityCount').textContent=state.mobilityDone||0;$('#currentLevel').textContent=state.level||1;$('#pSessions').textContent=sessions;$('#pSets').textContent=sets;$('#pMobility').textContent=state.mobilityDone||0;$('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,12).map(h=>`<div class="history-row" style="padding:10px 0;border-bottom:1px solid #e5ebef"><b>${h.type==='musculation'?'Musculation':'Assouplissements'}</b><small style="display:block;color:#667988">${h.date} · ${h.summary||''}</small>${h.note?`<small>${escapeHtml(h.note)}</small>`:''}</div>`).join(''):'<p class="muted">Aucune séance enregistrée pour le moment.</p>'}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function dockCoach3d(name){const card=$('#coach3dDock .coach3d-card');const slot=name==='training'?$('#coach3dTrainingSlot'):name==='mobility'?$('#coach3dMobilitySlot'):null;if(card&&slot)slot.appendChild(card)}
-function page(name){$$('.page').forEach(p=>p.classList.toggle('hidden',p.id!==`page-${name}`));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===name));if(name==='training')renderTraining();if(name==='mobility')renderMobility();if(name==='library')renderLibrary();dockCoach3d(name);renderStats();window.scrollTo({top:0,behavior:'smooth'})}
+migrate();
+function save(){localStorage.setItem('coachProgressionData',JSON.stringify(state));renderStats()}
+const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=s=>{s=Math.max(0,Math.round(Number(s)||0));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`};
+const allEx=()=>exercises.concat(state.custom||[]);
+const exById=id=>allEx().find(e=>e.id===id);
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.add('hidden'),2600)}
+function beep(freq=880){if(state.sound===false)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=new C(),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=.12;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.22);o.stop(ctx.currentTime+.23);o.onended=()=>ctx.close()}catch{}}
+function avatar(e){return `<figure class="demo" data-ex="${e.id}"></figure>`}
+
+/* ===== MUSCULATION : objectif, répétitions réellement faites, progression ===== */
+const live={};
+const goalOf=id=>{const e=exById(id)||{},g=state.goals[id]||{};return {sets:Math.max(1,Number(g.sets)||e.sets||3),reps:Math.max(1,Number(g.reps)||e.reps||8)}};
+const unitOf=id=>(exById(id)||{}).unit==='s'?'s':'reps';
+const U=id=>unitOf(id)==='s'?' s':' rép.';
+const logsOf=id=>(state.session.logs[id]=state.session.logs[id]||[]);
+function lastPerf(id){for(let i=state.history.length-1;i>=0;i--){const h=state.history[i];const d=(h.details||[]).find(x=>x.id===id);if(d)return {date:(h.date||'').split(',')[0],sets:d.sets}}return null}
+function liveOf(id){return live[id]=live[id]||{reps:0,asking:false,run:false,int:null,rest:0,restInt:null}}
+function exerciseCard(e){
+  return `<article class="exercise mcard" data-mcard="${e.id}">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>À surveiller :</b> ${escapeHtml(e.tip)}</p><div data-mgoal="${e.id}"></div><div data-msets="${e.id}"></div><div data-mlive="${e.id}"></div></div></article>`;
+}
+function renderM(id){
+  const e=exById(id);if(!e||!document.querySelector(`[data-mcard="${id}"]`))return;
+  const g=goalOf(id),logs=logsOf(id),lp=lastPerf(id),u=U(id),L=liveOf(id);
+  let hint='';if(lp){const ok=lp.sets.every(s=>s.d>=s.t);hint=`<div class="last">Dernière séance (${escapeHtml(lp.date)}) : <b>${lp.sets.map(s=>s.d).join(' · ')}</b>${u}${ok?' — objectif atteint, essaie d’en faire <b>1 de plus</b> aujourd’hui !':''}</div>`}
+  $(`[data-mgoal="${id}"]`).innerHTML=`<div class="goal"><div class="goal-main"><small>OBJECTIF</small><b>${g.sets} séries × ${g.reps}${unitOf(id)==='s'?' secondes':' répétitions'}</b></div><div class="goal-edit"><label>Séries<input type="number" min="1" max="20" value="${g.sets}" data-goal-sets="${id}"></label><label>${unitOf(id)==='s'?'Secondes':'Répét.'}<input type="number" min="1" max="999" value="${g.reps}" data-goal-reps="${id}"></label></div></div>${hint}`;
+  let rows='';
+  for(let i=0;i<g.sets;i++){
+    const l=logs[i],cur=!l&&i===logs.length;
+    rows+=l?`<div class="srow done"><span class="sn">Série ${i+1}</span><span class="st">objectif ${l.t}</span><label class="sd">fait <input type="number" min="0" max="999" value="${l.d}" data-edit-set="${id}:${i}">${u}</label><span class="ok ${l.d>=l.t?'y':'n'}">${l.d>=l.t?'✓':'−'}</span></div>`:`<div class="srow ${cur?'cur':'todo'}"><span class="sn">Série ${i+1}</span><span class="st">objectif ${g.reps}</span><span class="sd">${cur?'en cours…':'à faire'}</span><span class="ok"></span></div>`}
+  $(`[data-msets="${id}"]`).innerHTML=`<div class="sets">${rows}</div>`;
+  renderLive(id);
+}
+function renderLive(id){
+  const host=$(`[data-mlive="${id}"]`);if(!host)return;const g=goalOf(id),logs=logsOf(id),L=liveOf(id),timed=unitOf(id)==='s',u=U(id);
+  if(logs.length>=g.sets){const tot=logs.reduce((a,x)=>a+x.d,0);host.innerHTML=`<div class="live finished"><b>✓ Exercice terminé</b><span>Total : ${tot}${u}</span><button class="secondary" data-mredo="${id}">Refaire cet exercice</button></div>`;return}
+  const k=logs.length+1;
+  if(L.asking){host.innerHTML=`<div class="live asking"><b>Série ${k} terminée — note ce que tu as réellement fait</b><label class="big-in">${timed?'Secondes tenues':'Répétitions faites'}<input type="number" min="0" max="999" inputmode="numeric" value="${L.reps||g.reps}" data-ask-input="${id}"></label><div class="exercise-actions"><button class="primary-btn" data-msave="${id}">Enregistrer la série ${k}</button><button class="ghost" data-mcancel="${id}">Annuler</button></div></div>`;return}
+  if(L.rest>0){host.innerHTML=`<div class="live rest"><b>Repos avant la série ${k}</b><strong data-rest="${id}">${fmt(L.rest)}</strong><button class="secondary" data-mskip="${id}">Passer le repos</button></div>`;return}
+  host.innerHTML=`<div class="live"><div class="live-head"><b>Série ${k} / ${g.sets}</b><span>objectif ${g.reps}${u}</span></div><div class="counter">${timed?`<strong class="cnum" data-cnum="${id}">${L.reps}</strong><small>secondes</small>`:`<button class="cbtn" data-mminus="${id}" aria-label="Retirer une répétition">−</button><strong class="cnum" data-cnum="${id}">${L.reps}</strong><button class="cbtn plus" data-mplus="${id}" aria-label="Ajouter une répétition">+1</button>`}</div><div class="exercise-actions">${timed?`<button class="primary-btn" data-mwatch="${id}">${L.run?'Pause':'Démarrer le chrono'}</button>`:`<button class="secondary" data-mwatch="${id}">${L.run?'Pause chrono':'Chrono de série'} <span data-wclock="${id}">${fmt(L.t||0)}</span></button>`}<button class="primary-btn" data-mend="${id}">Terminer la série</button></div></div>`;
+}
+function stopWatch(id){const L=liveOf(id);if(L.int){clearInterval(L.int);L.int=null}L.run=false}
+function renderTraining(){
+  const list=exercises.filter(e=>e.kind==='musculation').concat(state.custom||[]);
+  $('#trainingList').innerHTML=list.map(exerciseCard).join('');list.forEach(e=>renderM(e.id));
+  $('#level').value=state.level;$('#stage').value=state.stage||'';$('#sessionNote').value=state.note||'';$('#restSec').value=state.rest;
+  $('#warmupStatus').textContent=state.warmup?'Échauffement validé ✓':'Pas encore fait aujourd’hui';
+}
+document.addEventListener('click',e=>{
+  const q=a=>e.target.closest(`[${a}]`),id=a=>q(a).getAttribute(a);
+  if(q('data-mplus')){const i=id('data-mplus'),L=liveOf(i);L.reps++;beep(820);const n=$(`[data-cnum="${i}"]`);if(n)n.textContent=L.reps;return}
+  if(q('data-mminus')){const i=id('data-mminus'),L=liveOf(i);L.reps=Math.max(0,L.reps-1);const n=$(`[data-cnum="${i}"]`);if(n)n.textContent=L.reps;return}
+  if(q('data-mwatch')){const i=id('data-mwatch'),L=liveOf(i),timed=unitOf(i)==='s';if(L.run){stopWatch(i)}else{L.run=true;L.int=setInterval(()=>{L.t=(L.t||0)+1;if(timed)L.reps=L.t;const c=$(`[data-wclock="${i}"]`);if(c)c.textContent=fmt(L.t);const n=$(`[data-cnum="${i}"]`);if(n&&timed)n.textContent=L.reps},1000)}renderLive(i);return}
+  if(q('data-mend')){const i=id('data-mend'),L=liveOf(i);stopWatch(i);L.asking=true;renderLive(i);return}
+  if(q('data-mcancel')){const i=id('data-mcancel');liveOf(i).asking=false;renderLive(i);return}
+  if(q('data-msave')){const i=id('data-msave'),L=liveOf(i),inp=$(`[data-ask-input="${i}"]`),d=Math.max(0,Math.round(Number(inp&&inp.value)||0)),g=goalOf(i);
+    logsOf(i).push({t:g.reps,d});state.setsDone=(state.setsDone||0)+1;L.asking=false;L.reps=0;L.t=0;
+    const more=logsOf(i).length<g.sets;if(more&&state.rest>0){L.rest=state.rest;clearInterval(L.restInt);L.restInt=setInterval(()=>{L.rest--;const r=$(`[data-rest="${i}"]`);if(L.rest<=0){clearInterval(L.restInt);L.rest=0;beep(1100);renderLive(i)}else if(r)r.textContent=fmt(L.rest)},1000)}
+    if(!more)beep(1400);else beep(980);
+    save();renderM(i);toast(more?`Série enregistrée : ${d}${U(i)}`:`Exercice terminé : ${logsOf(i).map(x=>x.d).join(' · ')}`);return}
+  if(q('data-mskip')){const i=id('data-mskip'),L=liveOf(i);clearInterval(L.restInt);L.rest=0;renderLive(i);return}
+  if(q('data-mredo')){const i=id('data-mredo'),L=liveOf(i);state.setsDone=Math.max(0,(state.setsDone||0)-logsOf(i).length);state.session.logs[i]=[];L.reps=0;L.t=0;save();renderM(i);return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.matches('[data-goal-sets]')){const i=t.dataset.goalSets;state.goals[i]=state.goals[i]||{};state.goals[i].sets=Math.max(1,Math.min(20,Number(t.value)||3));save();renderM(i)}
+  if(t.matches('[data-goal-reps]')){const i=t.dataset.goalReps;state.goals[i]=state.goals[i]||{};state.goals[i].reps=Math.max(1,Math.min(999,Number(t.value)||8));save();renderM(i)}
+  if(t.matches('[data-edit-set]')){const [i,n]=t.dataset.editSet.split(':');const l=logsOf(i)[+n];if(l){l.d=Math.max(0,Math.round(Number(t.value)||0));save();renderM(i)}}
+});
+$('#restSec').addEventListener('change',e=>{state.rest=Math.max(0,Math.min(600,Number(e.target.value)||0));save()});
+$('#level').addEventListener('change',e=>{state.level=e.target.value;save()});$('#stage').addEventListener('change',e=>{state.stage=e.target.value;save()});$('#sessionNote').addEventListener('input',e=>{state.note=e.target.value;save()});
+$('#finishSession').addEventListener('click',()=>{
+  const details=Object.entries(state.session.logs).filter(([i,l])=>l.length&&exById(i)).map(([i,l])=>({id:i,name:exById(i).name,unit:unitOf(i),sets:l.map(x=>({t:x.t,d:x.d}))}));
+  if(!details.length){toast('Valide au moins une série avant de terminer la séance.');return}
+  const n=details.reduce((a,d)=>a+d.sets.length,0);
+  state.history.push({type:'musculation',date:new Date().toLocaleString('fr-FR'),summary:`Niveau ${state.level}${state.stage?' · '+state.stage:''} · ${details.length} exercice(s) · ${n} série(s)`,note:state.note||'',warmup:state.warmup,details});
+  state.session={logs:{}};state.warmup=false;state.note='';Object.keys(live).forEach(i=>{stopWatch(i);clearInterval(live[i].restInt);delete live[i]});
+  save();renderTraining();renderProgress();toast('Séance sauvegardée : tes répétitions sont enregistrées.');
+});
+$('#addExercise').onclick=()=>{const name=prompt('Nom de ton exercice personnalisé :');if(!name)return;const sets=Number(prompt('Nombre de séries :','3'))||3,reps=Number(prompt('Répétitions par série :','8'))||8;state.custom=state.custom||[];state.custom.push({id:'custom'+Date.now(),name,kind:'musculation',zone:'À préciser',desc:'Exercice ajouté par toi. Renseigne tes consignes et vérifie la bonne exécution.',tip:'Privilégie une technique sûre.',sets,reps});save();renderTraining()};
+
+/* ===== SÉANCES CHRONOMÉTRÉES : assouplissements et échauffements ===== */
+const KINDS={
+ souplesse:{page:'mobility',title:'Assouplissements',eyebrow:'EN DEHORS DE LA MUSCULATION',pill:'À ton rythme',tipLabel:'Précaution',
+  intro:'Choisis une séance toute prête (haut, milieu, bas du corps ou tout) ou compose la tienne en cochant les exercices. Regarde l’animation de chaque exercice, puis lance le chrono ou la séance enchaînée.',
+  presets:[['haut','Haut du corps'],['milieu','Milieu · tronc'],['bas','Bas du corps'],['tout','Tout'],['perso','Personnalisée']],
+  groups:[['haut','Haut du corps'],['milieu','Milieu · tronc'],['bas','Bas du corps']],defDur:30},
+ echauffement:{page:'warmup',title:'Échauffement',eyebrow:'AVANT LA MUSCULATION',pill:'5 à 10 min',tipLabel:'Conseil',
+  intro:'Choisis un échauffement prêt à l’emploi ou compose le tien. Chaque exercice est expliqué par une animation : lance-les un par un ou toute la séance d’un coup.',
+  presets:[['express','Express'],['haut','Haut du corps'],['bas','Bas du corps'],['tout','Complet'],['perso','Personnalisé']],groups:null,defDur:30}
+};
+const WUP={express:['jumping','cercles','ouvertures','hanche','montees','rot_tronc'],haut:['poignets','cercles','ouvertures','rot_tronc','chat_vache'],bas:['hanche','pointes','montees','talons','fentes']};
+const catalog=kind=>exercises.filter(e=>e.kind===kind).sort((a,b)=>a.n-b.n);
+function presetIds(kind,k){const cat=catalog(kind);if(k==='tout')return cat.map(e=>e.id);if(kind==='souplesse')return cat.filter(e=>e.grp===k).map(e=>e.id);return cat.filter(e=>WUP[k].includes(e.id)).map(e=>e.id)}
+function selection(kind){const t=state.timed[kind];if(t.preset==='perso')return catalog(kind).filter(e=>t.custom.includes(e.id)).map(e=>e.id);return presetIds(kind,t.preset)}
+const durOf=(kind,id)=>Number(state.timed[kind].dur[id])||KINDS[kind].defDur;
+const done={souplesse:new Set(),echauffement:new Set()};
+let run={kind:null,id:null,left:0,int:null,chain:false,paused:false};
+function runStop(){if(run.int){clearInterval(run.int);run.int=null}}
+function runClear(){runStop();document.querySelectorAll('.tcard.current').forEach(c=>c.classList.remove('current'));document.querySelectorAll('[data-tstart]').forEach(b=>b.textContent='Lancer le chrono');run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar()}
+function updateBar(){document.querySelectorAll('[data-tbarstat]').forEach(el=>{const k=el.dataset.tbarstat;el.textContent=run.kind===k&&run.id?`En cours : ${exById(run.id).name.replace(/^\d+\.\s*/,'')} — ${fmt(run.left)}${run.paused?' (pause)':''}`:''});document.querySelectorAll('[data-tchain]').forEach(b=>{const k=b.dataset.tchain;b.textContent=run.kind===k&&run.chain?(run.paused?'▶ Reprendre':'⏸ Pause'):'▶ Lancer la séance enchaînée'})}
+function runTick(){
+  run.left--;const c=$(`[data-tclock="${run.id}"]`);if(c)c.textContent=fmt(Math.max(0,run.left));updateBar();
+  if(run.left<=0){const {kind,id,chain}=run;runStop();done[kind].add(id);beep(1000);const card=$(`[data-tcard="${id}"]`);if(card){card.classList.remove('current');card.classList.add('finished');const s=$(`[data-tstatus="${id}"]`);if(s)s.textContent='✓ fait'}
+    const b=$(`[data-tstart="${id}"]`);if(b)b.textContent='Relancer';
+    if(chain){const ids=selection(kind),i=ids.indexOf(id);if(i<ids.length-1)runStart(kind,ids[i+1],true);else{run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar();beep(1400);toast('Séance terminée ! Pense à la sauvegarder.')}}else{run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar()}}
+}
+function runStart(kind,id,chain){
+  runStop();document.querySelectorAll('.tcard.current').forEach(c=>c.classList.remove('current'));
+  run={kind,id,left:durOf(kind,id),chain:!!chain,paused:false,int:null};done[kind].delete(id);
+  const card=$(`[data-tcard="${id}"]`);if(card){card.classList.add('current');card.classList.remove('finished');card.scrollIntoView({behavior:'smooth',block:'start'});const b=$(`[data-tstart="${id}"]`);if(b)b.textContent='Pause';const s=$(`[data-tstatus="${id}"]`);if(s)s.textContent='en cours'}
+  beep(660);run.int=setInterval(runTick,1000);updateBar();
+}
+function runToggle(){if(!run.id)return;if(run.int){runStop();run.paused=true}else{run.paused=false;run.int=setInterval(runTick,1000)}const b=$(`[data-tstart="${run.id}"]`);if(b)b.textContent=run.paused?'Reprendre':'Pause';updateBar()}
+function timedCard(kind,id){
+  const e=exById(id),K=KINDS[kind],d=durOf(kind,id),dn=done[kind].has(id);
+  return `<article class="exercise tcard${dn?' finished':''}" data-tcard="${id}">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>${K.tipLabel} :</b> ${escapeHtml(e.tip)}</p><div class="tbar"><strong class="tclock" data-tclock="${id}">${fmt(d)}</strong><span class="tstatus" data-tstatus="${id}">${dn?'✓ fait':''}</span></div><div class="exercise-actions"><label>Durée (s)<input type="number" min="5" max="600" step="5" value="${d}" data-tdur="${id}" data-kind="${kind}"></label><button class="primary-btn" data-tstart="${id}" data-kind="${kind}">Lancer le chrono</button></div></div></article>`;
+}
+function renderTimed(kind){
+  const K=KINDS[kind],t=state.timed[kind],host=$(`#page-${K.page}`),ids=selection(kind),cat=catalog(kind);
+  const total=ids.reduce((a,i)=>a+durOf(kind,i),0);
+  const chips=K.presets.map(([k,l])=>`<button class="chip${t.preset===k?' on':''}" data-preset="${k}" data-kind="${kind}">${l}${k==='perso'?` <small>(${t.custom.length})</small>`:` <small>(${presetIds(kind,k).length})</small>`}</button>`).join('');
+  const row=e=>`<label class="pick${ids.includes(e.id)?' on':''}"><input type="checkbox" data-pick="${e.id}" data-kind="${kind}" ${ids.includes(e.id)?'checked':''}><span class="pick-thumb">${Demo.thumb(e.id)}</span><span class="pick-txt"><b>${escapeHtml(e.name)}</b><small>${escapeHtml(e.zone)}</small></span></label>`;
+  const picker=K.groups?K.groups.map(([g,l])=>`<h4 class="grp">${l}</h4><div class="picker">${cat.filter(e=>e.grp===g).map(row).join('')}</div>`).join(''):`<div class="picker">${cat.map(row).join('')}</div>`;
+  host.innerHTML=`<div class="section-head"><div><p class="eyebrow">${K.eyebrow}</p><h2>${K.title}</h2></div><span class="pill">${K.pill}</span></div><p class="muted">${K.intro}</p>
+  <div class="card"><h3>Ma séance</h3><div class="chips">${chips}</div></div>
+  <details class="card picker-card" ${state.pickOpen[kind]===false?'':'open'} data-pickdetails="${kind}"><summary><b>Choisir mes exercices</b> <span class="pill">${ids.length} / ${cat.length}</span></summary>${picker}</details>
+  <div class="card runbar"><div class="runbar-top"><div><b>${ids.length} exercice${ids.length>1?'s':''}</b><small> · ≈ ${Math.max(1,Math.round(total/60))} min</small></div><label class="sound-option"><input type="checkbox" data-sound ${state.sound!==false?'checked':''}> Son</label></div><div class="exercise-actions"><button class="primary-btn" data-tchain="${kind}">▶ Lancer la séance enchaînée</button><button class="secondary" data-tnext="${kind}">⏭ Suivant</button><button class="ghost" data-treset="${kind}">Réinitialiser</button></div><small class="tbarstat" data-tbarstat="${kind}"></small></div>
+  <div class="tlist">${ids.length?ids.map(i=>timedCard(kind,i)).join(''):'<div class="card"><p class="muted">Aucun exercice sélectionné : choisis une séance ci-dessus ou coche des exercices.</p></div>'}</div>
+  <div class="card"><button class="primary-btn full" data-tfinish="${kind}">Terminer et sauvegarder la séance</button></div>`;
+  updateBar();
+}
+document.addEventListener('click',e=>{
+  const q=a=>e.target.closest(`[${a}]`);let b;
+  if(b=q('data-preset')){const k=b.dataset.kind,t=state.timed[k];runClear();t.preset=b.dataset.preset;done[k].clear();save();renderTimed(k);return}
+  if(b=q('data-tstart')){const k=b.dataset.kind,id=b.dataset.tstart;if(run.id===id&&run.kind===k&&(run.int||run.paused)){runToggle();return}runStart(k,id,false);return}
+  if(b=q('data-tchain')){const k=b.dataset.tchain,ids=selection(k);if(!ids.length){toast('Choisis d’abord des exercices.');return}if(run.kind===k&&run.chain){runToggle();return}done[k].clear();document.querySelectorAll('.tcard.finished').forEach(c=>c.classList.remove('finished'));runStart(k,ids[0],true);return}
+  if(b=q('data-tnext')){const k=b.dataset.tnext,ids=selection(k);if(!ids.length)return;const i=run.kind===k?ids.indexOf(run.id):-1;const was=run.chain;if(i<ids.length-1){runStart(k,ids[i+1],true)}else{runClear();toast('Dernier exercice atteint.')}return}
+  if(b=q('data-treset')){const k=b.dataset.treset;runClear();done[k].clear();renderTimed(k);toast('Séance réinitialisée.');return}
+  if(b=q('data-tfinish')){const k=b.dataset.tfinish,ids=selection(k);if(!ids.length){toast('Aucun exercice dans la séance.');return}runClear();
+    const total=ids.reduce((a,i)=>a+durOf(k,i),0),pl=(KINDS[k].presets.find(p=>p[0]===state.timed[k].preset)||[,''])[1];
+    if(k==='souplesse')state.mobilityDone=(state.mobilityDone||0)+1;else{state.warmupDone=(state.warmupDone||0)+1;state.warmup=true}
+    state.history.push({type:k,date:new Date().toLocaleString('fr-FR'),summary:`${pl} · ${ids.length} exercice(s) · ≈ ${Math.max(1,Math.round(total/60))} min`});done[k].clear();save();renderTimed(k);toast(k==='souplesse'?'Séance de souplesse enregistrée.':'Échauffement enregistré — tu peux commencer la musculation.');return}
+  if(q('data-sound'))return;
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.matches('[data-pick]')){const k=t.dataset.kind,s=new Set(selection(k));t.checked?s.add(t.dataset.pick):s.delete(t.dataset.pick);runClear();state.timed[k].custom=[...s];state.timed[k].preset='perso';save();renderTimed(k)}
+  if(t.matches('[data-tdur]')){const k=t.dataset.kind,v=Math.max(5,Math.min(600,Number(t.value)||30));state.timed[k].dur[t.dataset.tdur]=v;save();if(run.id===t.dataset.tdur){runClear()}const c=$(`[data-tclock="${t.dataset.tdur}"]`);if(c)c.textContent=fmt(v)}
+  if(t.matches('[data-sound]')){state.sound=t.checked;save();document.querySelectorAll('[data-sound]').forEach(x=>x.checked=t.checked)}
+});
+document.addEventListener('toggle',e=>{const d=e.target;if(d.matches&&d.matches('[data-pickdetails]')){state.pickOpen[d.dataset.pickdetails]=d.open;localStorage.setItem('coachProgressionData',JSON.stringify(state))}},true);
+
+/* ===== bibliothèque, statistiques, progression ===== */
+function renderLibrary(){const q=($('#searchExercise')?.value||'').toLowerCase();const kl={souplesse:'Assouplissement',echauffement:'Échauffement',musculation:'Musculation'};
+  $('#libraryList').innerHTML=exercises.filter(e=>(e.name+' '+e.zone+' '+e.desc).toLowerCase().includes(q)).sort((a,b)=>{const o={echauffement:0,musculation:1,souplesse:2};return o[a.kind]-o[b.kind]||((a.n||0)-(b.n||0))}).map(e=>`<article class="exercise">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${kl[e.kind]} · ${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>Conseil :</b> ${escapeHtml(e.tip)}</p></div></article>`).join('')}
+function renderStats(){
+  const sessions=state.history.filter(h=>h.type==='musculation').length;
+  $('#sessionCount').textContent=`${sessions} séance${sessions>1?'s':''}`;$('#totalSets').textContent=state.setsDone||0;$('#mobilityCount').textContent=state.mobilityDone||0;$('#currentLevel').textContent=state.level||1;
+  $('#pSessions').textContent=sessions;$('#pSets').textContent=state.setsDone||0;$('#pMobility').textContent=state.mobilityDone||0;
+  const names={musculation:'Musculation',souplesse:'Assouplissements',echauffement:'Échauffement'};
+  $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,15).map(h=>`<div class="history-row"><b>${names[h.type]||h.type}</b><small>${escapeHtml(h.date)} · ${escapeHtml(h.summary||'')}</small>${(h.details||[]).map(d=>`<div class="hd"><span>${escapeHtml(d.name)}</span><b>${d.sets.map(s=>s.d).join(' · ')}${d.unit==='s'?' s':''}</b></div>`).join('')}${h.note?`<small>${escapeHtml(h.note)}</small>`:''}</div>`).join(''):'<p class="muted">Aucune séance enregistrée pour le moment.</p>';
+}
+function renderProgress(){
+  const by={};state.history.forEach(h=>(h.details||[]).forEach(d=>{(by[d.id]=by[d.id]||{name:d.name,unit:d.unit,s:[]}).s.push({date:(h.date||'').split(',')[0],tot:d.sets.reduce((a,x)=>a+x.d,0),best:Math.max(...d.sets.map(x=>x.d)),goal:d.sets.reduce((a,x)=>a+x.t,0)})}));
+  const ids=Object.keys(by);const host=$('#exProgress');if(!host)return;
+  host.innerHTML=ids.length?ids.map(i=>{const x=by[i],s=x.s.slice(-8),max=Math.max(...s.map(v=>v.tot),1),last=s[s.length-1],prev=s[s.length-2],u=x.unit==='s'?' s':' rép.';
+    const bars=s.map((v,n)=>{const h=Math.max(3,Math.round(v.tot/max*38));return `<rect x="${n*17}" y="${42-h}" width="12" height="${h}" rx="3" fill="${n===s.length-1?'#ef7d2d':'#58b8a8'}"><title>${v.date} : ${v.tot}</title></rect>`}).join('');
+    const dl=prev?last.tot-prev.tot:null,tr=dl==null?'1re séance':dl>0?`<b class="up">▲ +${dl}${u}</b>`:dl<0?`<b class="down">▼ ${dl}${u}</b>`:'<b>= stable</b>';
+    return `<div class="pg"><div class="pg-txt"><b>${escapeHtml(x.name)}</b><small>Dernière : ${last.tot}${u} (objectif ${last.goal}) · record série ${Math.max(...x.s.map(v=>v.best))}${x.unit==='s'?' s':''} · ${x.s.length} séance${x.s.length>1?'s':''}</small><small>${tr}</small></div><svg class="pg-bars" viewBox="0 0 ${Math.max(s.length*17,17)} 44" preserveAspectRatio="xMinYMax meet" aria-label="Évolution">${bars}</svg></div>`}).join(''):'<p class="muted">Termine une séance de musculation en notant tes séries : tes progrès par exercice apparaîtront ici.</p>';
+}
+
+/* ===== navigation ===== */
+const PAGEK={mobility:'souplesse',warmup:'echauffement'};
+function page(name){
+  $$('.page').forEach(p=>p.classList.toggle('hidden',p.id!==`page-${name}`));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+  if(name==='training')renderTraining();if(PAGEK[name])renderTimed(PAGEK[name]);if(name==='library')renderLibrary();if(name==='progress')renderProgress();
+  renderStats();window.scrollTo({top:0,behavior:'smooth'});
+}
 $$('.tab').forEach(b=>b.addEventListener('click',()=>page(b.dataset.page)));$$('[data-go]').forEach(b=>b.addEventListener('click',()=>page(b.dataset.go)));
-$('#level').addEventListener('change',e=>{state.level=e.target.value;save()});$('#stage').addEventListener('change',e=>{state.stage=e.target.value;save()});$('#sessionNote').addEventListener('input',e=>{state.note=e.target.value;save()});$('#warmupDone').addEventListener('click',()=>{state.warmup=!state.warmup;save();renderTraining()});
-const exerciseClocks={};
-function playExerciseTone(type){beep(type==='side'?520:type==='set'?1180:type==='done'?1480:820)}
-function stopExerciseClock(id){if(exerciseClocks[id]?.interval)clearInterval(exerciseClocks[id].interval);if(exerciseClocks[id])exerciseClocks[id].interval=null}
-function resetExerciseClock(id){stopExerciseClock(id);const card=$(`[data-exercise-timer="${id}"]`);if(!card)return;const duration=Number($(`[data-exercise-duration="${id}"]`)?.value||45);exerciseClocks[id]={remaining:duration,currentSet:1,reps:0,interval:null};updateExerciseClockUI(id);card.querySelector(`[data-exercise-status="${id}"]`).textContent='Prêt à commencer';const b=card.querySelector(`[data-exercise-start="${id}"]`);if(b)b.textContent='Démarrer le chrono'}
-function updateExerciseClockUI(id){const st=exerciseClocks[id];const card=$(`[data-exercise-timer="${id}"]`);if(!st||!card)return;const duration=Number($(`[data-exercise-duration="${id}"]`)?.value||45),sets=Number($(`[data-sets="${id}"]`)?.value||3),goal=Number($(`[data-reps="${id}"]`)?.value||30);card.querySelector(`[data-exercise-clock="${id}"]`).textContent=formatClock(st.remaining);card.querySelector(`[data-current-set="${id}"]`).textContent=Math.min(st.currentSet,sets);card.querySelector(`[data-total-sets="${id}"]`).textContent=sets;card.querySelector(`[data-rep-count="${id}"]`).textContent=st.reps;card.querySelector(`[data-rep-goal="${id}"]`).textContent=goal}
-function startExerciseClock(id){if(!exerciseClocks[id])resetExerciseClock(id);const st=exerciseClocks[id],card=$(`[data-exercise-timer="${id}"]`);if(st.interval){stopExerciseClock(id);card.querySelector(`[data-exercise-start="${id}"]`).textContent='Reprendre';card.querySelector(`[data-exercise-status="${id}"]`).textContent='En pause';return}if(st.remaining<=0){st.remaining=Number($(`[data-exercise-duration="${id}"]`)?.value||45);st.reps=0}card.querySelector(`[data-exercise-start="${id}"]`).textContent='Pause';card.querySelector(`[data-exercise-status="${id}"]`).textContent='Série en cours';st.interval=setInterval(()=>{st.remaining=Math.max(0,st.remaining-1);updateExerciseClockUI(id);if(st.remaining===0){stopExerciseClock(id);const total=Number($(`[data-sets="${id}"]`)?.value||3);if(st.currentSet<total){playExerciseTone('set');st.currentSet++;st.remaining=Number($(`[data-exercise-duration="${id}"]`)?.value||45);st.reps=0;card.querySelector(`[data-exercise-status="${id}"]`).textContent=`Série ${st.currentSet} : à toi de jouer`;card.querySelector(`[data-exercise-start="${id}"]`).textContent='Démarrer la série suivante';updateExerciseClockUI(id)}else{playExerciseTone('done');card.querySelector(`[data-exercise-status="${id}"]`).textContent='Exercice terminé ✓';card.querySelector(`[data-exercise-start="${id}"]`).textContent='Recommencer';state.setsDone=(state.setsDone||0)+total;save();toast('Exercice terminé : '+(exercises.find(x=>x.id===id)?.name||id))}}},1000)}
-document.addEventListener('click',e=>{const startMobility=e.target.closest('[data-start-mobility]');if(startMobility){stopRoutine();state.mobilitySelected=[startMobility.dataset.startMobility];save();routineIndex=0;renderMobility();$('#timerStart').click();return}const start=e.target.closest('[data-exercise-start]');if(start){startExerciseClock(start.dataset.exerciseStart);return}const rep=e.target.closest('[data-exercise-rep]');if(rep){const id=rep.dataset.exerciseRep;if(!exerciseClocks[id])resetExerciseClock(id);exerciseClocks[id].reps++;updateExerciseClockUI(id);playExerciseTone('rep');return}const side=e.target.closest('[data-exercise-side]');if(side){playExerciseTone('side');const status=$(`[data-exercise-status="${side.dataset.exerciseSide}"]`);if(status)status.textContent='Changement de côté';return}const done=e.target.closest('[data-exercise-setdone]');if(done){const id=done.dataset.exerciseSetdone;if(!exerciseClocks[id])resetExerciseClock(id);const st=exerciseClocks[id],total=Number($(`[data-sets="${id}"]`)?.value||3);stopExerciseClock(id);if(st.currentSet<total){st.currentSet++;st.remaining=Number($(`[data-exercise-duration="${id}"]`)?.value||45);st.reps=0;playExerciseTone('set');$(`[data-exercise-status="${id}"]`).textContent=`Série ${st.currentSet} : à toi de jouer`;$(`[data-exercise-start="${id}"]`).textContent='Démarrer la série suivante'}else{st.remaining=0;playExerciseTone('done');$(`[data-exercise-status="${id}"]`).textContent='Exercice terminé ✓';$(`[data-exercise-start="${id}"]`).textContent='Recommencer';state.setsDone=(state.setsDone||0)+total;save()}updateExerciseClockUI(id);return}const reset=e.target.closest('[data-exercise-reset]');if(reset){resetExerciseClock(reset.dataset.exerciseReset);return}const c=e.target.closest('[data-complete]');if(c){const id=c.dataset.complete;const sets=Number($(`[data-sets="${id}"]`)?.value||3);const reps=Number($(`[data-reps="${id}"]`)?.value||0);state.setsDone=(state.setsDone||0)+sets;state.lastPerformance=state.lastPerformance||{};state.lastPerformance[id]={sets,reps,date:new Date().toLocaleDateString('fr-FR')};save();toast(`${sets} série(s) enregistrée(s) pour ${exercises.find(x=>x.id===id)?.name||id}`)}const m=e.target.closest('[data-select-mobility]');if(m){state.mobilitySelected=state.mobilitySelected||[];if(!state.mobilitySelected.includes(m.dataset.selectMobility))state.mobilitySelected.push(m.dataset.selectMobility);save();toast('Exercice ajouté à ta sélection.')}});
-$('#finishSession').addEventListener('click',()=>{state.history.push({type:'musculation',date:new Date().toLocaleString('fr-FR'),summary:`Niveau ${state.level}${state.stage?' · '+state.stage:''}`,note:state.note||'',warmup:state.warmup});state.warmup=false;state.note='';save();renderTraining();toast('Séance sauvegardée sur ce téléphone.')});
-document.addEventListener('change',e=>{if(e.target.matches('[data-exercise-duration]')){const id=e.target.dataset.exerciseDuration;state.exerciseTimers=state.exerciseTimers||{};state.exerciseTimers[id]=Math.max(5,Math.min(600,Number(e.target.value)||45));save();resetExerciseClock(id)}if(e.target.matches('[data-mobility-check]')){state.mobilitySelected=state.mobilitySelected||[];const id=e.target.dataset.mobilityCheck;state.mobilitySelected=e.target.checked?[...new Set([...state.mobilitySelected,id])]:state.mobilitySelected.filter(x=>x!==id);routineIndex=0;save();renderMobility()}if(e.target.matches('[data-mobility-duration]')){state.mobilityDurations=state.mobilityDurations||{};state.mobilityDurations[e.target.dataset.mobilityDuration]=Math.max(5,Math.min(600,Number(e.target.value)||30));save();renderRoutine()}});
-function timerRender(){$('#timerDisplay').textContent=`${String(Math.floor(timerSecs/60)).padStart(2,'0')}:${String(timerSecs%60).padStart(2,'0')}`}$('#timerPlus').onclick=()=>{timerSecs+=10;timerRender()};$('#timerMinus').onclick=()=>{timerSecs=Math.max(0,timerSecs-10);timerRender()};$('#timerStart').onclick=()=>{if(routineInt){stopRoutine();$('#timerStart').textContent='Reprendre';return}const list=selectedRoutine();if(!list.length){toast('Choisis d’abord les exercices de ta séance.');return}if(timerSecs<=0)renderRoutine();$('#timerStart').textContent='Pause';routineInt=setInterval(()=>{timerSecs=Math.max(0,timerSecs-1);timerRender();if(timerSecs===0){stopRoutine();beep(1000);if(routineIndex<list.length-1){advanceRoutine()}else{$('#routineCurrentName').textContent='Séance terminée !';$('#timerStart').textContent='Recommencer';toast('Séance terminée !')}}},1000)};$('#routineNext').onclick=()=>advanceRoutine();$('#routineReset').onclick=()=>{stopRoutine();routineIndex=0;renderRoutine();toast('Séance réinitialisée.')};$('#finishMobility').onclick=()=>{stopRoutine();state.mobilityDone=(state.mobilityDone||0)+1;state.history.push({type:'souplesse',date:new Date().toLocaleString('fr-FR'),summary:`${(state.mobilitySelected||[]).length} exercice(s)`});save();toast('Séance de souplesse enregistrée.')};$('#searchExercise').addEventListener('input',renderLibrary);
-$('#addExercise').onclick=()=>{const name=prompt('Nom de ton exercice personnalisé :');if(!name)return;const reps=Number(prompt('Nombre de répétitions ou secondes :','8'))||8;state.custom=state.custom||[];state.custom.push({id:'custom'+Date.now(),name,kind:'musculation',zone:'À préciser',desc:'Exercice ajouté par toi. Renseigne tes consignes et vérifie la bonne exécution.',tip:'Privilégie une technique sûre.',sets:3,reps});save();renderTraining()};
-$('#exportData').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='coach-progression-sauvegarde.json';a.click();URL.revokeObjectURL(a.href);toast('Sauvegarde exportée.')};$('#importData').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.history))throw Error();state={...defaultState,...d};save();renderTraining();renderMobility();toast('Sauvegarde restaurée.')}catch{toast('Fichier invalide ou incompatible.')}e.target.value=''});$('#clearData').onclick=()=>{if(confirm('Effacer définitivement toutes les données locales ? Exporte une sauvegarde avant.')){state={...defaultState};save();renderTraining();renderMobility();toast('Données effacées.')}};
-let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else toast('Dans Chrome : menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».')};
-renderTraining();renderMobility();renderLibrary();renderStats();timerRender();dockCoach3d('mobility');if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+$('#searchExercise').addEventListener('input',renderLibrary);
+
+/* ===== sauvegarde / installation ===== */
+$('#exportData').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='coach-progression-sauvegarde.json';a.click();URL.revokeObjectURL(a.href);toast('Sauvegarde exportée.')};
+$('#importData').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.history))throw Error();state={...defaultState,...d};migrate();save();renderTraining();renderProgress();toast('Sauvegarde restaurée.')}catch{toast('Fichier invalide ou incompatible.')}e.target.value=''});
+$('#clearData').onclick=()=>{if(confirm('Effacer définitivement toutes les données locales ? Exporte une sauvegarde avant.')){state={...defaultState,session:{logs:{}},timed:{}};migrate();save();renderTraining();renderProgress();toast('Données effacées.')}};
+let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});
+$('#installBtn').onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else toast('Dans Chrome : menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».')};
+renderTraining();renderStats();renderProgress();
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

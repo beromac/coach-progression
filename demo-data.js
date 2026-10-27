@@ -43,7 +43,7 @@ const PROF='Vue de profil',FACE='Vue de face',TOP='Vue de dessus';
 (()=>{ // tirage sous barre
   const A=[322,232],bar=[166,130];
   const mk=t=>({h:ad(A,dir(t),98),t,d:-10,an:IK(bar[0],bar[1],-1,180),ln:IK(A[0],A[1],1,170),lf:IK(A[0]+4,A[1],1,170)});
-  D.rowing={view:PROF,sx:230,sr:130,hl:['back','biceps','forearm'],props:pole(bar[0],bar[1],96)+`<text x="40" y="112" font-size="11" fill="#5d7380" font-family="system-ui">barre / support stable</text>`,
+  D.rowing={view:PROF,sx:230,sr:130,hl:['back','biceps','forearm'],props:pole(bar[0],bar[1],96),
     keys:[K('Suspendu, bras tendus, corps gainé',1,.5,mk(258)),K('Tire la poitrine vers la barre',1.2,.6,mk(240))]};
 })();
 
@@ -275,6 +275,47 @@ const PROF='Vue de profil',FACE='Vue de face',TOP='Vue de dessus';
   const b={h:[fromKnee(70)[0],226],t:180,d:0,an:[70,70],ln:IK(222,242,1,-90),lf:IK(222,242,1,-90)};
   const c=O(b,{t:204,d:-6,an:IK(b.h[0]-52,247,-1),af:IK(b.h[0]-60,247,-1)});
   D.et35={view:PROF,hl:['foot','ankle'],mat:[40,330],sx:210,sr:130,keys:[K('À genoux, dessus des pieds au sol',1,.4,a),K('Assieds-toi doucement sur les talons',1.4,.6,b),K('Appuie légèrement en arrière sur les mains',1,2,c)]};
+})();
+
+
+/* ===================== ÉCHAUFFEMENT (nouveaux) ===================== */
+(()=>{ // jumping jacks
+  const closed=standF({an:[6,6],af:[-6,-6],ln:IK(208,FA,1),lf:IK(192,FA,-1)});
+  const open=standF({h:[200,154],an:[160,160],af:[-160,-160],ln:IK(238,FA-4,1,70),lf:IK(162,FA-4,-1,70)});
+  D.jumping={view:FACE,hl:['shoulder','thigh','calf'],keys:[K('Saute : jambes et bras écartés',.3,.12,open),K('Reviens pieds joints, bras le long du corps',.3,.12,closed)]};
+})();
+(()=>{ // montées de genoux
+  const mk=(upN)=>{const up=[96,6],dn=IK(205,FA,1);const hip=[200,FA-98-3];
+    return {h:hip,t:182,d:0,an:upN?[-38,35]:[52,150],af:upN?[52,150]:[-38,35],ln:upN?up:IK(200,FA,1),lf:upN?IK(200,FA,1):[96,6]}};
+  D.montees={view:PROF,hl:['hipflex','quad','calf'],sr:70,keys:[K('Monte le genou droit à hauteur de hanche',.28,.08,mk(1)),K('Alterne avec le genou gauche',.28,.08,mk(0))]};
+})();
+(()=>{ // talons-fesses
+  const mk=(upN)=>({h:[200,FA-98],t:182,d:0,an:upN?[-38,35]:[52,150],af:upN?[52,150]:[-38,35],ln:upN?[14,-150]:IK(200,FA,1),lf:upN?IK(200,FA,1):[14,-150]});
+  D.talons={view:PROF,hl:['ham','calf'],sr:70,keys:[K('Talon droit vers la fesse',.3,.08,mk(1)),K('Alterne avec le talon gauche',.3,.08,mk(0))]};
+})();
+(()=>{ // rotations du tronc
+  const mk=tw=>standF({tw,hy:tw,an:[90,90],af:[-90,-90],ln:IK(214,FA,1),lf:IK(186,FA,-1)});
+  D.rot_tronc={view:FACE,alt:1,hl:['side','abs','lowback'],keys:[K('Bras écartés, bassin de face',.8,.1,mk(90)),K('Tourne le buste, bassin immobile',1,.4,mk(24)),K('Reviens au centre',.8,.1,mk(90),{nt:1})]};
+})();
+(()=>{ // chat / vache
+  const kx=170,hip=[kx,192],hand=[230,241];
+  const mk=(t,sb,d)=>({h:hip,t,sb,d,an:IK(hand[0],hand[1],-1,90),ln:[0,-90],lf:[0,-90]});
+  D.chat_vache={view:PROF,mat:[40,330],sr:140,hl:['back','abs'],keys:[K('Dos creux, regard devant',1.3,.5,mk(100,40,35)),K('Dos rond, menton vers la poitrine',1.5,.5,mk(96,-40,-40))]};
+})();
+(()=>{ // pointes de pieds
+  const dn=stand({an:[8,8],ln:IK(200,FA),lf:IK(194,FA)});
+  const up=stand({h:[200,FA-13-98],an:[8,8],ln:IK(200,FA-13,1,52),lf:IK(194,FA-13,1,52)});
+  D.pointes={view:PROF,hl:['calf','ankle'],sr:70,keys:[K('Monte sur la pointe des pieds',.7,.5,up),K('Redescends lentement',.7,.2,dn)]};
+})();
+(()=>{ // fentes dynamiques
+  const st=stand({an:IK(208,142,1),af:IK(190,142,-1)});
+  const lg=(front)=>({h:[198,172],t:180,d:0,an:IK(208,160,1),af:IK(190,160,-1),ln:front?IK(250,FA,1):IK(148,FA-14,-1,50),lf:front?IK(148,FA-14,-1,50):IK(250,FA,1)});
+  D.fentes={view:PROF,hl:['quad','glute'],sr:90,keys:[K('Grand pas en avant, descends',.9,.35,lg(1)),K('Pousse pour revenir',.8,.2,st,{nt:1}),K('Change de jambe',.9,.35,lg(0)),K('Reviens debout',.8,.2,st,{nt:1})]};
+})();
+(()=>{ // ouvertures de bras
+  const cl=standF({an:IK(204,96,1),af:IK(196,96,-1)});
+  const op=standF({an:[104,104],af:[-104,-104]});
+  D.ouvertures={view:FACE,hl:['pec','shoulder'],keys:[K('Croise les bras devant la poitrine',.8,.25,cl),K('Ouvre grand les bras, poitrine sortie',.8,.35,op)]};
 })();
 
 Object.keys(D).forEach(k=>{Demo.data[k]=D[k]});

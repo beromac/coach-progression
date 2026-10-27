@@ -17,13 +17,13 @@ function limb(s,def){if(!s)return {fk:def.slice()};if(Array.isArray(s))return {f
 function norm(p){
   const front=p.v==='f'||p.v==='top';
   const tw=p.tw!=null?p.tw:front?90:0,pw=p.pw!=null?p.pw:front?90:0;
-  return {bh:p.bh||[],h:p.h.slice(),t:p.t,d:p.d||0,tw,pw,hy:p.hy!=null?p.hy:tw,pl:p.pl!=null?p.pl:p.t,ts:p.ts!=null?p.ts:1,
+  return {sb:p.sb||0,bh:p.bh||[],h:p.h.slice(),t:p.t,d:p.d||0,tw,pw,hy:p.hy!=null?p.hy:tw,pl:p.pl!=null?p.pl:p.t,ts:p.ts!=null?p.ts:1,
     an:limb(p.an,[0,0]),af:limb(p.af||p.an,[0,0]),ln:limb(p.ln,[0,0]),lf:limb(p.lf||p.ln,[0,0])};
 }
 function roots(P){
-  const sc=ad(P.h,dir(P.t),L.tor*P.ts),ps=Math.sin(P.tw*D),ph=Math.sin(P.pw*D);
+  const hf=L.tor*P.ts/2,mid=ad(P.h,dir(P.t-P.sb/2),hf),sc=ad(mid,dir(P.t+P.sb/2),hf),ps=Math.sin(P.tw*D),ph=Math.sin(P.pw*D);
   const pp=[-Math.cos(P.t*D),Math.sin(P.t*D)],pl=[-Math.cos(P.pl*D),Math.sin(P.pl*D)];
-  return {sc,sn:ad(sc,pp,W.sw*ps),sf:ad(sc,pp,-W.sw*ps),hn:ad(P.h,pl,W.hw*ph),hf:ad(P.h,pl,-W.hw*ph)};
+  return {mid,sc,sn:ad(sc,pp,W.sw*ps),sf:ad(sc,pp,-W.sw*ps),hn:ad(P.h,pl,W.hw*ph),hf:ad(P.h,pl,-W.hw*ph)};
 }
 /* cinématique inverse à deux segments : renvoie les angles absolus [a1,a2] */
 function ik2(root,target,l1,l2,b){
@@ -36,7 +36,7 @@ function ik2(root,target,l1,l2,b){
 function resolve(s,root,l1,l2){if(s.fk)return s.fk.slice();const a=ik2(root,s.ik,l1,l2,s.b);return [a[0],a[1],s.ft]}
 function joints(P){
   const R=roots(P),J={...R,h:P.h};
-  const ha=P.t+P.d;J.ha=ha;J.neck=ad(R.sc,dir(ha),L.nk);J.head=ad(R.sc,dir(ha),L.nk+L.hr);
+  const ha=P.t+P.sb/2+P.d;J.ha=ha;J.neck=ad(R.sc,dir(ha),L.nk);J.head=ad(R.sc,dir(ha),L.nk+L.hr);
   [['an',R.sn],['af',R.sf]].forEach(([k,r])=>{const a=resolve(P[k],r,L.ua,L.fa),el=ad(r,dir(a[0]),L.ua),wr=ad(el,dir(a[1]),L.fa);
     J[k]={root:r,el,wr,tip:ad(wr,dir(a[2]!=null?a[2]:a[1]),L.hd),a}});
   const cp=Math.abs(Math.cos(P.pw*D)),sp=Math.abs(Math.sin(P.pw*D));
@@ -51,7 +51,7 @@ function blendLimb(a,b,u,rA,rB,l1,l2,leg){
   return {fk:[lerpA(x[0],y[0],u),lerpA(x[1],y[1],u),lerpA(x[2],y[2],u)]};
 }
 function blend(A,B,u){
-  const o={bh:u<.5?A.bh:B.bh,h:[lerp(A.h[0],B.h[0],u),lerp(A.h[1],B.h[1],u)],t:lerpA(A.t,B.t,u),d:lerpA(A.d,B.d,u),tw:lerp(A.tw,B.tw,u),pw:lerp(A.pw,B.pw,u),hy:lerp(A.hy,B.hy,u),pl:lerpA(A.pl,B.pl,u),ts:lerp(A.ts,B.ts,u)};
+  const o={sb:lerp(A.sb,B.sb,u),bh:u<.5?A.bh:B.bh,h:[lerp(A.h[0],B.h[0],u),lerp(A.h[1],B.h[1],u)],t:lerpA(A.t,B.t,u),d:lerpA(A.d,B.d,u),tw:lerp(A.tw,B.tw,u),pw:lerp(A.pw,B.pw,u),hy:lerp(A.hy,B.hy,u),pl:lerpA(A.pl,B.pl,u),ts:lerp(A.ts,B.ts,u)};
   const rA=roots(A),rB=roots(B);o.an=o.af=o.ln=o.lf=null;const rO=roots(o);void rO;
   o.an=blendLimb(A.an,B.an,u,rA.sn,rB.sn,L.ua,L.fa,0);o.af=blendLimb(A.af,B.af,u,rA.sf,rB.sf,L.ua,L.fa,0);
   o.ln=blendLimb(A.ln,B.ln,u,rA.hn,rB.hn,L.th,L.sh,1);o.lf=blendLimb(A.lf,B.lf,u,rA.hf,rB.hf,L.th,L.sh,1);
@@ -79,8 +79,8 @@ function drawLeg(J,k,far,P){
 function drawTorso(J,P){
   const tw=P.tw*D,pw=P.pw*D;
   const ws=2*Math.hypot(W.tD*Math.cos(tw),W.tW*Math.sin(tw)),wh=2*Math.hypot(W.hD*Math.cos(pw),W.hW*Math.sin(pw));
-  const h=P.h,s=J.sc,m1=mix(h,s,.3),wm=lerp(wh,ws,.3);
-  return cap(m1,s,wm,ws,C.shirt)+cap(h,m1,wh+1,wm,C.shorts);
+  const h=P.h,m=J.mid,s=J.sc,p1=mix(h,m,.6),wm=lerp(wh,ws,.3),wmid=lerp(wh,ws,.5);
+  return cap(m,s,wmid,ws,C.shirt)+cap(p1,m,wm,wmid,C.shirt)+cap(h,p1,wh+1,wm,C.shorts);
 }
 function drawHead(J,P,sil){
   const c=J.head,ha=J.ha,hy=P.hy*D,r=L.hr,cy=Math.cos(hy),sy=Math.abs(Math.sin(hy));
@@ -97,7 +97,7 @@ function lineSh(a,b,off,w,col){return line([a[0]+off[0],a[1]+off[1]],[b[0]+off[0
 function drawHL(J,P,toks,al){
   const col=`rgba(${C.hl},${al})`,kf=Math.max(0,Math.cos(P.pw*D)),kt=Math.max(0,Math.cos(P.tw*D)),fr=1-kt;
   const tf=dir(P.t-90),tb=dir(P.t+90),h=P.h,s=J.sc,o=[];
-  const T=(x)=>mix(h,s,x),sh=(v,m)=>[v[0]*m,v[1]*m];
+  const T=(x)=>x<=.5?mix(h,J.mid,x*2):mix(J.mid,s,(x-.5)*2),sh=(v,m)=>[v[0]*m,v[1]*m];
   const arms=[['an',J.an],['af',J.af]],legs=[['ln',J.ln],['lf',J.lf]];
   toks.forEach(tk=>{switch(tk){
     case 'pec':o.push(lineSh(T(.55),T(.97),sh(tf,6*kt),12+10*fr,col));break;
@@ -140,11 +140,31 @@ function draw(P,opt={}){
 /* ---------- décor ---------- */
 const VB='0 -15 400 285';
 function floorSvg(ex){
-  if(ex.nf)return `<rect x="0" y="-15" width="400" height="285" fill="#eef3f6"/>`+(ex.mat?`<rect x="${ex.mat[0]}" y="${ex.mat[1]}" width="${ex.mat[2]}" height="${ex.mat[3]}" rx="10" fill="#cfe6e2" stroke="#9fcfc6"/>`:'');
-  let s=`<rect x="0" y="${G}" width="400" height="30" fill="#dde8ec"/><line x1="0" y1="${G}" x2="400" y2="${G}" stroke="#b4c7d0" stroke-width="2"/>`;
+  if(ex.nf)return `<rect x="-400" y="-400" width="1200" height="1200" fill="#eef3f6"/>`+(ex.mat?`<rect x="${ex.mat[0]}" y="${ex.mat[1]}" width="${ex.mat[2]}" height="${ex.mat[3]}" rx="10" fill="#cfe6e2" stroke="#9fcfc6"/>`:'');
+  let s=`<rect x="-400" y="${G}" width="1200" height="300" fill="#dde8ec"/><line x1="-400" y1="${G}" x2="800" y2="${G}" stroke="#b4c7d0" stroke-width="2"/>`;
   s+=`<ellipse cx="${ex.sx||200}" cy="${G+6}" rx="${ex.sr||90}" ry="5" fill="#102a43" opacity=".10"/>`;
   if(ex.mat)s+=`<rect x="${ex.mat[0]}" y="${G-2}" width="${ex.mat[1]-ex.mat[0]}" height="9" rx="4" fill="#9fd3c9"/>`;
   return s;
+}
+
+function pts(P){const J=joints(P),a=[J.head,J.sn,J.sf,J.h,J.hn,J.hf];['an','af'].forEach(k=>a.push(J[k].el,J[k].wr,J[k].tip));['ln','lf'].forEach(k=>a.push(J[k].kn,J[k].an,J[k].toe));return a}
+function fit(ex,asp){
+  prep(ex);ex._vb=ex._vb||{};if(ex._vb[asp])return ex._vb[asp];
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  ex.keys.forEach(k=>pts(k.P).forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}));
+  if(ex.alt){const a=400-x1,b=400-x0;x0=Math.min(x0,a);x1=Math.max(x1,b)}
+  x0-=26;x1+=26;y0-=28;y1+=14;if(!ex.nf)y1=Math.max(y1,G+12);
+  let w=x1-x0,h=y1-y0;const cx=(x0+x1)/2,cy=(y0+y1)/2;
+  if(w/h<asp)w=h*asp;else h=w/asp;
+  if(w<230){w=230;h=w/asp}
+  if(w>400){const f=400/w;w=400;h*=f}
+  let vx=cx-w/2;vx=Math.max(0,Math.min(400-w,vx));
+  const r=`${f1(vx)} ${f1(cy-h/2)} ${f1(w)} ${f1(h)}`;ex._vb[asp]=r;return r;
+}
+function thumb(id){
+  const ex=(window.Demo.data||{})[id];if(!ex)return '';prep(ex);
+  let i=ex.keys.length-1;while(i>0&&(ex.keys[i].bad||ex.keys[i].nt))i--;
+  const P=ex.keys[i].P;return `<svg viewBox="${fit(ex,1.25)}" aria-hidden="true">${floorSvg(ex)}${ex.props||''}${draw(P,{hl:ex.hl,al:.85})}${ex.front||''}</svg>`;
 }
 /* ---------- lecteur ---------- */
 const reg=[];let raf=0,last=0;
@@ -163,11 +183,11 @@ function at(ex,t){
 function build(el){
   const id=el.dataset.ex,data=(window.Demo.data||{})[id];
   if(!data){el.remove();return null}
-  const ex=prep(data),front=ex.view||'Vue de profil';
+  const ex=prep(data),VBX=fit(ex,400/285),front=ex.view||'Vue de profil';
   const ghost=ex.keys.map(k=>draw(k.P)).join('');
-  const steps=ex.keys.map((k,i)=>k.nt?'':`<li class="${k.bad?'bad':''}"><button type="button" class="demo-step" data-i="${i}" aria-label="Étape ${i+1} : ${k.l}"><svg viewBox="${ex.vb||VB}" aria-hidden="true">${floorSvg(ex)}${ex.props||''}${draw(k.P,{hl:ex.hl,al:.85})}${ex.front||''}</svg><span><b>${i+1}</b> ${k.l}</span></button></li>`).join('');
-  el.innerHTML=`<div class="demo-stage"><svg viewBox="${ex.vb||VB}" role="img" aria-label="Démonstration animée : ${(ex.name||'').replace(/"/g,'')}">${floorSvg(ex)}<g>${ex.props||''}</g><g class="demo-ghost" opacity=".13">${ghost}</g><g class="demo-fig"></g><g>${ex.front||''}</g></svg><span class="demo-view">${front}</span><span class="demo-phase"></span><div class="demo-ctrl"><button type="button" class="demo-pp" aria-label="Pause">❚❚</button><button type="button" class="demo-sp" aria-label="Vitesse">×1</button></div></div><ol class="demo-steps">${steps}</ol><figcaption>Zones travaillées en orange · touche l’image pour mettre en pause · touche une étape pour la voir fixe</figcaption>`;
-  const st={el,ex,fig:el.querySelector('.demo-fig'),ph:el.querySelector('.demo-phase'),pp:el.querySelector('.demo-pp'),sp:el.querySelector('.demo-sp'),t:0,play:true,speed:1,vis:true,fixed:-1,last:-1};
+  const steps=ex.keys.map((k,i)=>k.nt?'':`<li class="${k.bad?'bad':''}"><button type="button" class="demo-step" data-i="${i}" aria-label="Étape ${i+1} : ${k.l}"><svg viewBox="${VBX}" aria-hidden="true">${floorSvg(ex)}${ex.props||''}${draw(k.P,{hl:ex.hl,al:.85})}${ex.front||''}</svg><span><b>${i+1}</b> ${k.l}</span></button></li>`).join('');
+  el.innerHTML=`<div class="demo-stage"><svg viewBox="${VBX}" role="img" aria-label="Démonstration animée : ${(ex.name||'').replace(/"/g,'')}">${floorSvg(ex)}<g>${ex.props||''}</g><g class="demo-ghost" opacity=".13">${ghost}</g><g class="demo-fig"></g><g>${ex.front||''}</g></svg><span class="demo-view">${front}</span><span class="demo-phase"></span><div class="demo-ctrl"><button type="button" class="demo-pp" aria-label="Pause">❚❚</button><button type="button" class="demo-sp" aria-label="Vitesse">×1</button></div></div><ol class="demo-steps">${steps}</ol><figcaption>Zones travaillées en orange · touche l’image pour mettre en pause · touche une étape pour la voir fixe</figcaption>`;
+  const st={el,ex,fig:el.querySelector('.demo-fig'),gh:el.querySelector('.demo-ghost'),ph:el.querySelector('.demo-phase'),pp:el.querySelector('.demo-pp'),sp:el.querySelector('.demo-sp'),t:0,play:true,speed:1,vis:true,fixed:-1,last:-1};
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const setPlay=v=>{st.play=v;st.fixed=v?-1:st.fixed;st.pp.textContent=v?'❚❚':'▶';st.pp.setAttribute('aria-label',v?'Pause':'Lecture');el.classList.toggle('paused',!v);render(st,0)};
   el.querySelector('.demo-stage').addEventListener('click',e=>{if(e.target.closest('.demo-sp'))return;if(e.target.closest('.demo-pp')||true)setPlay(!st.play)});
@@ -183,7 +203,7 @@ function render(st,dt){
   let P=r.P;
   const flip=ex.alt&&(r.cyc%2===1)&&st.fixed<0;
   const al=.55+.3*Math.sin(st.t*4.5);
-  st.fig.setAttribute('transform',flip?'translate(400 0) scale(-1 1)':'');
+  const tf=flip?'translate(400 0) scale(-1 1)':'';st.fig.setAttribute('transform',tf);if(st.gh.getAttribute('transform')!==tf)st.gh.setAttribute('transform',tf);
   st.fig.innerHTML=draw(P,{hl:ex.hl,al:st.fixed>=0?.85:al});
   const txt=(r.i+1)+' · '+r.l+(ex.alt&&st.fixed<0?(flip?' — côté 2':' — côté 1'):'');
   if(st.ph.textContent!==txt)st.ph.textContent=txt;st.ph.classList.toggle('bad',!!r.bad);
@@ -211,6 +231,6 @@ function init(){
   io=observe();mount(document);
   let pend=0;new MutationObserver(()=>{if(pend)return;pend=setTimeout(()=>{pend=0;mount(document)},30)}).observe(document.body,{childList:true,subtree:true});
 }
-window.Demo={floorSvg,prep,mount,draw,joints,norm,blend,roots,ik2,L,G,dir,ang,ad,mix,VB,data:{},_reg:reg};
+window.Demo={thumb,fit,floorSvg,prep,mount,draw,joints,norm,blend,roots,ik2,L,G,dir,ang,ad,mix,VB,data:{},_reg:reg};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0));else setTimeout(init,0);
 })();
