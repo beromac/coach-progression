@@ -62,10 +62,10 @@ const WORDER=['jumping','poignets','cercles','ouvertures','rot_tronc','chat_vach
 exercises.forEach(e=>{if(e.kind==='echauffement')e.n=WORDER.indexOf(e.id)+1});
 
 /* ===== état ===== */
-const defaultState={level:'1',stage:'',history:[],setsDone:0,mobilityDone:0,warmupDone:0,custom:[],warmup:false,goals:{},rest:60,sound:true,session:{logs:{}},timed:{},pickOpen:{}};
+const defaultState={level:'1',stage:'',history:[],setsDone:0,mobilityDone:0,warmupDone:0,custom:[],warmup:false,goals:{},rest:60,sound:true,session:{logs:{}},timed:{},pickOpen:{},lafay:{}};
 let state;try{state={...defaultState,...JSON.parse(localStorage.getItem('coachProgressionData')||'{}')}}catch{state={...defaultState}}
 function migrate(){
-  state.session=state.session&&state.session.logs?state.session:{logs:{}};state.goals=state.goals||{};state.pickOpen=state.pickOpen||{};state.timed=state.timed||{};
+  state.session=state.session&&state.session.logs?state.session:{logs:{}};state.goals=state.goals||{};state.lafay=Object.assign({lvl:null,start:null,free:false,pick:null,st:0,cI:-1,stepB:1,stepI1:1,aEx:'A3',subA:'',subC:'',subE:'',J1:false,b25:false},state.lafay||{});if(state.lafay.lvl===undefined)state.lafay.lvl=null;state.pickOpen=state.pickOpen||{};state.timed=state.timed||{};
   ['souplesse','echauffement'].forEach(k=>{const t=state.timed[k]=state.timed[k]||{};t.preset=t.preset||(k==='souplesse'?'haut':'express');t.custom=t.custom||[];t.dur=t.dur||{}});
   if(!state._mig){if((state.mobilitySelected||[]).length){state.timed.souplesse.custom=state.mobilitySelected.slice();state.timed.souplesse.preset='perso'}Object.assign(state.timed.souplesse.dur,state.mobilityDurations||{});state._mig=1}
 }
@@ -74,47 +74,48 @@ function save(){localStorage.setItem('coachProgressionData',JSON.stringify(state
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=s=>{s=Math.max(0,Math.round(Number(s)||0));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`};
 const allEx=()=>exercises.concat(state.custom||[]);
-const exById=id=>allEx().find(e=>e.id===id);
+const exById=id=>(window.LF&&LF.ex(id))||allEx().find(e=>e.id===id);
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.add('hidden'),2600)}
 function beep(freq=880){if(state.sound===false)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=new C(),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=.12;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.22);o.stop(ctx.currentTime+.23);o.onended=()=>ctx.close()}catch{}}
 function avatar(e){return `<figure class="demo" data-ex="${e.id}"></figure>`}
 
 /* ===== MUSCULATION : objectif, répétitions réellement faites, progression ===== */
 const live={};
-const goalOf=id=>{const e=exById(id)||{},g=state.goals[id]||{};return {sets:Math.max(1,Number(g.sets)||e.sets||3),reps:Math.max(1,Number(g.reps)||e.reps||8)}};
+const goalOf=id=>{const e=exById(id)||{},g=state.goals[id]||{};if(e.lafay)return {sets:e.sets,reps:LF.tOf(id,0)};return {sets:Math.max(1,Number(g.sets)||e.sets||3),reps:Math.max(1,Number(g.reps)||e.reps||8)}};
 const unitOf=id=>(exById(id)||{}).unit==='s'?'s':'reps';
 const U=id=>unitOf(id)==='s'?' s':' rép.';
 const logsOf=id=>(state.session.logs[id]=state.session.logs[id]||[]);
-function lastPerf(id){for(let i=state.history.length-1;i>=0;i--){const h=state.history[i];const d=(h.details||[]).find(x=>x.id===id);if(d)return {date:(h.date||'').split(',')[0],sets:d.sets}}return null}
+function lastPerf(id){for(let i=state.history.length-1;i>=0;i--){const h=state.history[i];const d=(h.details||[]).find(x=>(x.bk||x.id)===id);if(d)return {date:(h.date||'').split(',')[0],sets:d.sets}}return null}
 function liveOf(id){return live[id]=live[id]||{reps:0,asking:false,run:false,int:null,rest:0,restInt:null}}
 function exerciseCard(e){
+  if(e.lafay)return LF.cardHtml(e);
   return `<article class="exercise mcard" data-mcard="${e.id}">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>À surveiller :</b> ${escapeHtml(e.tip)}</p><div data-mgoal="${e.id}"></div><div data-msets="${e.id}"></div><div data-mlive="${e.id}"></div></div></article>`;
 }
 function renderM(id){
   const e=exById(id);if(!e||!document.querySelector(`[data-mcard="${id}"]`))return;
-  const g=goalOf(id),logs=logsOf(id),lp=lastPerf(id),u=U(id),L=liveOf(id);
+  const g=goalOf(id),logs=logsOf(id),lp=lastPerf(id),u=U(id),L=liveOf(id),lf=e.lafay,T=i=>lf?LF.tOf(id,i):g.reps,tl=t=>t?'objectif '+t:'maximum';
   let hint='';if(lp){const ok=lp.sets.every(s=>s.d>=s.t);hint=`<div class="last">Dernière séance (${escapeHtml(lp.date)}) : <b>${lp.sets.map(s=>s.d).join(' · ')}</b>${u}${ok?' — objectif atteint, essaie d’en faire <b>1 de plus</b> aujourd’hui !':''}</div>`}
-  $(`[data-mgoal="${id}"]`).innerHTML=`<div class="goal"><div class="goal-main"><small>OBJECTIF</small><b>${g.sets} séries × ${g.reps}${unitOf(id)==='s'?' secondes':' répétitions'}</b></div><div class="goal-edit"><label>Séries<input type="number" min="1" max="20" value="${g.sets}" data-goal-sets="${id}"></label><label>${unitOf(id)==='s'?'Secondes':'Répét.'}<input type="number" min="1" max="999" value="${g.reps}" data-goal-reps="${id}"></label></div></div>${hint}`;
+  $(`[data-mgoal="${id}"]`).innerHTML=lf?LF.goalHtml(e)+hint:`<div class="goal"><div class="goal-main"><small>OBJECTIF</small><b>${g.sets} séries × ${g.reps}${unitOf(id)==='s'?' secondes':' répétitions'}</b></div><div class="goal-edit"><label>Séries<input type="number" min="1" max="20" value="${g.sets}" data-goal-sets="${id}"></label><label>${unitOf(id)==='s'?'Secondes':'Répét.'}<input type="number" min="1" max="999" value="${g.reps}" data-goal-reps="${id}"></label></div></div>${hint}`;
   let rows='';
   for(let i=0;i<g.sets;i++){
     const l=logs[i],cur=!l&&i===logs.length;
-    rows+=l?`<div class="srow done"><span class="sn">Série ${i+1}</span><span class="st">objectif ${l.t}</span><label class="sd">fait <input type="number" min="0" max="999" value="${l.d}" data-edit-set="${id}:${i}">${u}</label><span class="ok ${l.d>=l.t?'y':'n'}">${l.d>=l.t?'✓':'−'}</span></div>`:`<div class="srow ${cur?'cur':'todo'}"><span class="sn">Série ${i+1}</span><span class="st">objectif ${g.reps}</span><span class="sd">${cur?'en cours…':'à faire'}</span><span class="ok"></span></div>`}
+    rows+=l?`<div class="srow done"><span class="sn">Série ${i+1}</span><span class="st">${tl(l.t)}</span><label class="sd">fait <input type="number" min="0" max="999" value="${l.d}" data-edit-set="${id}:${i}">${u}${e.pair?` + <input type="number" min="0" max="999" value="${l.d2||0}" data-edit-set2="${id}:${i}">`:''}</label><span class="ok ${l.d>=l.t?'y':'n'}">${l.d>=l.t?'✓':'−'}</span></div>`:`<div class="srow ${cur?'cur':'todo'}"><span class="sn">Série ${i+1}</span><span class="st">${tl(T(i))}</span><span class="sd">${cur?'en cours…':'à faire'}</span><span class="ok"></span></div>`}
   $(`[data-msets="${id}"]`).innerHTML=`<div class="sets">${rows}</div>`;
   renderLive(id);
 }
 function renderLive(id){
-  const host=$(`[data-mlive="${id}"]`);if(!host)return;const g=goalOf(id),logs=logsOf(id),L=liveOf(id),timed=unitOf(id)==='s',u=U(id);
+  const host=$(`[data-mlive="${id}"]`);if(!host)return;const g=goalOf(id),logs=logsOf(id),L=liveOf(id),timed=unitOf(id)==='s',u=U(id),e=exById(id),lf=e&&e.lafay,T=lf?LF.tOf(id,logs.length):g.reps,tl=T?`objectif ${T}${u}`:'maximum';
+  if(L.rest>0){host.innerHTML=`<div class="live rest"><b>${logs.length<g.sets?'Repos avant la série '+(logs.length+1):'Repos avant l’exercice suivant'}</b><strong data-rest="${id}">${fmt(L.rest)}</strong><button class="secondary" data-mskip="${id}">Passer le repos</button></div>`;return}
   if(logs.length>=g.sets){const tot=logs.reduce((a,x)=>a+x.d,0);host.innerHTML=`<div class="live finished"><b>✓ Exercice terminé</b><span>Total : ${tot}${u}</span><button class="secondary" data-mredo="${id}">Refaire cet exercice</button></div>`;return}
   const k=logs.length+1;
-  if(L.asking){host.innerHTML=`<div class="live asking"><b>Série ${k} terminée — note ce que tu as réellement fait</b><label class="big-in">${timed?'Secondes tenues':'Répétitions faites'}<input type="number" min="0" max="999" inputmode="numeric" value="${L.reps||g.reps}" data-ask-input="${id}"></label><div class="exercise-actions"><button class="primary-btn" data-msave="${id}">Enregistrer la série ${k}</button><button class="ghost" data-mcancel="${id}">Annuler</button></div></div>`;return}
-  if(L.rest>0){host.innerHTML=`<div class="live rest"><b>Repos avant la série ${k}</b><strong data-rest="${id}">${fmt(L.rest)}</strong><button class="secondary" data-mskip="${id}">Passer le repos</button></div>`;return}
-  host.innerHTML=`<div class="live"><div class="live-head"><b>Série ${k} / ${g.sets}</b><span>objectif ${g.reps}${u}</span></div><div class="counter">${timed?`<strong class="cnum" data-cnum="${id}">${L.reps}</strong><small>secondes</small>`:`<button class="cbtn" data-mminus="${id}" aria-label="Retirer une répétition">−</button><strong class="cnum" data-cnum="${id}">${L.reps}</strong><button class="cbtn plus" data-mplus="${id}" aria-label="Ajouter une répétition">+1</button>`}</div><div class="exercise-actions">${timed?`<button class="primary-btn" data-mwatch="${id}">${L.run?'Pause':'Démarrer le chrono'}</button>`:`<button class="secondary" data-mwatch="${id}">${L.run?'Pause chrono':'Chrono de série'} <span data-wclock="${id}">${fmt(L.t||0)}</span></button>`}<button class="primary-btn" data-mend="${id}">Terminer la série</button></div></div>`;
+  if(L.asking){host.innerHTML=`<div class="live asking"><b>Série ${k} terminée — note ce que tu as réellement fait</b><label class="big-in">${timed?'Secondes tenues':e&&e.pair?'Répétitions faites : '+e.pair[0]:'Répétitions faites'}<input type="number" min="0" max="999" inputmode="numeric" value="${L.reps||(lf?T:g.reps)}" data-ask-input="${id}"></label>${e&&e.pair?`<label class="big-in">Répétitions faites : ${e.pair[1]}<input type="number" min="0" max="999" inputmode="numeric" value="0" data-ask2-input="${id}"></label>`:''}<div class="exercise-actions"><button class="primary-btn" data-msave="${id}">Enregistrer la série ${k}</button><button class="ghost" data-mcancel="${id}">Annuler</button></div></div>`;return}
+  host.innerHTML=`<div class="live"><div class="live-head"><b>Série ${k} / ${g.sets}</b><span>${tl}</span></div><div class="counter">${timed?`<strong class="cnum" data-cnum="${id}">${L.reps}</strong><small>secondes</small>`:`<button class="cbtn" data-mminus="${id}" aria-label="Retirer une répétition">−</button><strong class="cnum" data-cnum="${id}">${L.reps}</strong><button class="cbtn plus" data-mplus="${id}" aria-label="Ajouter une répétition">+1</button>`}</div><div class="exercise-actions">${timed?`<button class="primary-btn" data-mwatch="${id}">${L.run?'Pause':'Démarrer le chrono'}</button>`:`<button class="secondary" data-mwatch="${id}">${L.run?'Pause chrono':'Chrono de série'} <span data-wclock="${id}">${fmt(L.t||0)}</span></button>`}<button class="primary-btn" data-mend="${id}">Terminer la série</button></div></div>`;
 }
 function stopWatch(id){const L=liveOf(id);if(L.int){clearInterval(L.int);L.int=null}L.run=false}
 function renderTraining(){
-  const list=exercises.filter(e=>e.kind==='musculation').concat(state.custom||[]);
+  const list=(LF.active()?LF.exes():exercises.filter(e=>e.kind==='musculation')).concat(state.custom||[]);$('#lafayCard').innerHTML=LF.card();
   $('#trainingList').innerHTML=list.map(exerciseCard).join('');list.forEach(e=>renderM(e.id));
-  $('#level').value=state.level;$('#stage').value=state.stage||'';$('#sessionNote').value=state.note||'';$('#restSec').value=state.rest;
+  $('#sessionNote').value=state.note||'';$('#restSec').value=state.rest;
   $('#warmupStatus').textContent=state.warmup?'Échauffement validé ✓':'Pas encore fait aujourd’hui';
 }
 document.addEventListener('click',e=>{
@@ -124,9 +125,9 @@ document.addEventListener('click',e=>{
   if(q('data-mwatch')){const i=id('data-mwatch'),L=liveOf(i),timed=unitOf(i)==='s';if(L.run){stopWatch(i)}else{L.run=true;L.int=setInterval(()=>{L.t=(L.t||0)+1;if(timed)L.reps=L.t;const c=$(`[data-wclock="${i}"]`);if(c)c.textContent=fmt(L.t);const n=$(`[data-cnum="${i}"]`);if(n&&timed)n.textContent=L.reps},1000)}renderLive(i);return}
   if(q('data-mend')){const i=id('data-mend'),L=liveOf(i);stopWatch(i);L.asking=true;renderLive(i);return}
   if(q('data-mcancel')){const i=id('data-mcancel');liveOf(i).asking=false;renderLive(i);return}
-  if(q('data-msave')){const i=id('data-msave'),L=liveOf(i),inp=$(`[data-ask-input="${i}"]`),d=Math.max(0,Math.round(Number(inp&&inp.value)||0)),g=goalOf(i);
-    logsOf(i).push({t:g.reps,d});state.setsDone=(state.setsDone||0)+1;L.asking=false;L.reps=0;L.t=0;
-    const more=logsOf(i).length<g.sets;if(more&&state.rest>0){L.rest=state.rest;clearInterval(L.restInt);L.restInt=setInterval(()=>{L.rest--;const r=$(`[data-rest="${i}"]`);if(L.rest<=0){clearInterval(L.restInt);L.rest=0;beep(1100);renderLive(i)}else if(r)r.textContent=fmt(L.rest)},1000)}
+  if(q('data-msave')){const i=id('data-msave'),L=liveOf(i),inp=$(`[data-ask-input="${i}"]`),d=Math.max(0,Math.round(Number(inp&&inp.value)||0)),g=goalOf(i),ee=exById(i),lf=ee&&ee.lafay,i2=$(`[data-ask2-input="${i}"]`),rec={t:lf?LF.tOf(i,logsOf(i).length):g.reps,d};if(i2)rec.d2=Math.max(0,Math.round(Number(i2.value)||0));
+    logsOf(i).push(rec);state.setsDone=(state.setsDone||0)+1;L.asking=false;L.reps=0;L.t=0;
+    const more=logsOf(i).length<g.sets,rs=lf?(more?ee.rs:ee.ra):(more?state.rest:0);if(rs>0){L.rest=rs;clearInterval(L.restInt);L.restInt=setInterval(()=>{L.rest--;const r=$(`[data-rest="${i}"]`);if(L.rest<=0){clearInterval(L.restInt);L.rest=0;beep(1100);renderLive(i)}else if(r)r.textContent=fmt(L.rest)},1000)}
     if(!more)beep(1400);else beep(980);
     save();renderM(i);toast(more?`Série enregistrée : ${d}${U(i)}`:`Exercice terminé : ${logsOf(i).map(x=>x.d).join(' · ')}`);return}
   if(q('data-mskip')){const i=id('data-mskip'),L=liveOf(i);clearInterval(L.restInt);L.rest=0;renderLive(i);return}
@@ -136,16 +137,17 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.matches('[data-goal-sets]')){const i=t.dataset.goalSets;state.goals[i]=state.goals[i]||{};state.goals[i].sets=Math.max(1,Math.min(20,Number(t.value)||3));save();renderM(i)}
   if(t.matches('[data-goal-reps]')){const i=t.dataset.goalReps;state.goals[i]=state.goals[i]||{};state.goals[i].reps=Math.max(1,Math.min(999,Number(t.value)||8));save();renderM(i)}
+  if(t.matches('[data-edit-set2]')){const [i,n]=t.dataset.editSet2.split(':');const l=logsOf(i)[+n];if(l){l.d2=Math.max(0,Math.round(Number(t.value)||0));save()}}
   if(t.matches('[data-edit-set]')){const [i,n]=t.dataset.editSet.split(':');const l=logsOf(i)[+n];if(l){l.d=Math.max(0,Math.round(Number(t.value)||0));save();renderM(i)}}
 });
 $('#restSec').addEventListener('change',e=>{state.rest=Math.max(0,Math.min(600,Number(e.target.value)||0));save()});
-$('#level').addEventListener('change',e=>{state.level=e.target.value;save()});$('#stage').addEventListener('change',e=>{state.stage=e.target.value;save()});$('#sessionNote').addEventListener('input',e=>{state.note=e.target.value;save()});
+$('#sessionNote').addEventListener('input',e=>{state.note=e.target.value;save()});
 $('#finishSession').addEventListener('click',()=>{
-  const details=Object.entries(state.session.logs).filter(([i,l])=>l.length&&exById(i)).map(([i,l])=>({id:i,name:exById(i).name,unit:unitOf(i),sets:l.map(x=>({t:x.t,d:x.d}))}));
+  const details=Object.entries(state.session.logs).filter(([i,l])=>l.length&&exById(i)).map(([i,l])=>{const x=exById(i);return x.lafay?{id:x.code,bk:i,name:x.name,unit:x.unit==='s'?'s':'reps',sets:l.map(y=>({t:y.t,d:y.d,...(y.d2!=null?{d2:y.d2}:{})}))}:{id:i,name:x.name,unit:unitOf(i),sets:l.map(y=>({t:y.t,d:y.d}))}});
   if(!details.length){toast('Valide au moins une série avant de terminer la séance.');return}
   const n=details.reduce((a,d)=>a+d.sets.length,0);
-  state.history.push({type:'musculation',date:new Date().toLocaleString('fr-FR'),summary:`Niveau ${state.level}${state.stage?' · '+state.stage:''} · ${details.length} exercice(s) · ${n} série(s)`,note:state.note||'',warmup:state.warmup,details});
-  state.session={logs:{}};state.warmup=false;state.note='';Object.keys(live).forEach(i=>{stopWatch(i);clearInterval(live[i].restInt);delete live[i]});
+  state.history.push({type:'musculation',date:new Date().toLocaleString('fr-FR'),summary:`${LF.active()?LF.label()+' · '+state.session.plan.name:'Séance libre'} · ${details.length} exercice(s) · ${n} série(s)`,note:state.note||'',warmup:state.warmup,details,...(LF.active()?{lvl:state.lafay.lvl,sess:state.session.plan.si,st:state.lafay.st}:{})});
+  state.session={logs:{}};LF.afterSession();state.warmup=false;state.note='';Object.keys(live).forEach(i=>{stopWatch(i);clearInterval(live[i].restInt);delete live[i]});
   save();renderTraining();renderProgress();toast('Séance sauvegardée : tes répétitions sont enregistrées.');
 });
 $('#addExercise').onclick=()=>{const name=prompt('Nom de ton exercice personnalisé :');if(!name)return;const sets=Number(prompt('Nombre de séries :','3'))||3,reps=Number(prompt('Répétitions par série :','8'))||8;state.custom=state.custom||[];state.custom.push({id:'custom'+Date.now(),name,kind:'musculation',zone:'À préciser',desc:'Exercice ajouté par toi. Renseigne tes consignes et vérifie la bonne exécution.',tip:'Privilégie une technique sûre.',sets,reps});save();renderTraining()};
@@ -224,12 +226,12 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d.matches&&d.matches(
 
 /* ===== bibliothèque, statistiques, progression ===== */
 function renderLibrary(){const q=($('#searchExercise')?.value||'').toLowerCase();const kl={souplesse:'Assouplissement',echauffement:'Échauffement',musculation:'Musculation'};
-  $('#libraryList').innerHTML=exercises.filter(e=>(e.name+' '+e.zone+' '+e.desc).toLowerCase().includes(q)).sort((a,b)=>{const o={echauffement:0,musculation:1,souplesse:2};return o[a.kind]-o[b.kind]||((a.n||0)-(b.n||0))}).map(e=>`<article class="exercise">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${kl[e.kind]} · ${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>Conseil :</b> ${escapeHtml(e.tip)}</p></div></article>`).join('')}
+  $('#libraryList').innerHTML=exercises.filter(e=>(e.name+' '+e.zone+' '+e.desc).toLowerCase().includes(q)).sort((a,b)=>{const o={echauffement:0,musculation:1,souplesse:2};return o[a.kind]-o[b.kind]||((a.n||0)-(b.n||0))}).map(e=>`<article class="exercise">${avatar(e)}<div class="exercise-copy"><h3>${escapeHtml(e.name)}</h3><p class="meta">${kl[e.kind]} · ${escapeHtml(e.zone)}</p><p class="exercise-description">${escapeHtml(e.desc)}</p><p><b>Conseil :</b> ${escapeHtml(e.tip)}</p></div></article>`).join('')+(q?'':'<h3 class="lf-lib-h">Exercices de la méthode Lafay</h3>')+LF.libHtml(q)}
 function renderStats(){
   const sessions=state.history.filter(h=>h.type==='musculation').length;
-  $('#sessionCount').textContent=`${sessions} séance${sessions>1?'s':''}`;$('#totalSets').textContent=state.setsDone||0;$('#mobilityCount').textContent=state.mobilityDone||0;$('#currentLevel').textContent=state.level||1;
+  $('#sessionCount').textContent=`${sessions} séance${sessions>1?'s':''}`;$('#totalSets').textContent=state.setsDone||0;$('#mobilityCount').textContent=state.mobilityDone||0;$('#currentLevel').textContent=LF.short(state.lafay.lvl||'N—');
   $('#pSessions').textContent=sessions;$('#pSets').textContent=state.setsDone||0;$('#pMobility').textContent=state.mobilityDone||0;
-  const names={musculation:'Musculation',souplesse:'Assouplissements',echauffement:'Échauffement'};
+  const names={test:'Test de départ',musculation:'Musculation',souplesse:'Assouplissements',echauffement:'Échauffement'};
   $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,15).map(h=>`<div class="history-row"><b>${names[h.type]||h.type}</b><small>${escapeHtml(h.date)} · ${escapeHtml(h.summary||'')}</small>${(h.details||[]).map(d=>`<div class="hd"><span>${escapeHtml(d.name)}</span><b>${d.sets.map(s=>s.d).join(' · ')}${d.unit==='s'?' s':''}</b></div>`).join('')}${h.note?`<small>${escapeHtml(h.note)}</small>`:''}</div>`).join(''):'<p class="muted">Aucune séance enregistrée pour le moment.</p>';
 }
 function renderProgress(){

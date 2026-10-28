@@ -95,3 +95,10 @@
 .pg-txt{display:flex;flex-direction:column;gap:2px;min-width:0}.pg-txt small{color:#667988}.pg-bars{width:130px;height:44px;flex:none}
 .up{color:#1f8a5a}.down{color:#c0572b}
 .tcard{scroll-margin-top:150px}
+
+.lcode{background:#102a43;color:#fff;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;text-align:center;padding:6px}.lcode b{font-size:24px;letter-spacing:.02em}.lcode small{font-size:9px;color:#9fc3d6;line-height:1.2}
+.lf .lf-test{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}.lf .lf-test label{display:flex;flex-direction:column;gap:4px;text-align:center}.lf-lab{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.lf-pick{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.lf-opts{display:grid;gap:8px;margin:10px 0}.lf-opt{display:flex;flex-direction:column;gap:4px;font-size:12px}.lf-opt:has(input[type=checkbox]){flex-direction:row;align-items:center;gap:8px}
+.lf-sug{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#effaf7;border:1px solid #bfe6dd;border-radius:12px;padding:10px;margin:8px 0;font-size:12px;line-height:1.4;flex-wrap:wrap}
+.lf-more{margin:10px 0}.lf-more summary,details summary{cursor:pointer;font-weight:700;font-size:12px;padding:6px 0}.lf-note{font-size:10px}.srow input+input{margin-left:2px}
+.lf-how{margin:8px 0;background:#f3f7f8;border-radius:10px;padding:4px 10px}.lf-how p{font-size:12px;line-height:1.5;margin:6px 0}.lf-tip{color:#a4502a!important}.lf-lib-h{margin:18px 0 6px}

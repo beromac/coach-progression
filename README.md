@@ -34,3 +34,10 @@ Chaque fiche de musculation dispose de son propre chrono : durée réglable par 
 - Assouplissements : séances prêtes (haut, milieu, bas, tout) ou personnalisées, liste compacte avec image, séance enchaînée avec chrono.
 - Échauffement : même principe (Express, haut, bas, complet, personnalisé) avec 11 exercices animés.
 - Les animations sont des illustrations pédagogiques simplifiées : compare-les au livre avant de les utiliser comme consigne technique.
+
+## V19 — Méthode Lafay (onglet Musculation)
+- Test de départ (A, B, C, A1) → niveau conseillé (B : 0-4 → niveau 1 prog. 1, 5-7 → prog. 2, 8+ → niveau 2).
+- Niveaux 1 à 13, 12 bis, 12 ter, « Aller plus loin » : séries, répétitions et repos du livre, séance du jour (S1/S2 en alternance).
+- Objectif de répétitions qui évolue (+1 par séance, record à battre) et propositions de passage de niveau selon tes répétitions notées.
+- V20 : fiche de chaque exercice (muscles, position, respiration, conseils), résumée d'après les pp. 138-213 du livre ; visible sur chaque carte (« Comment faire cet exercice ») et dans la Bibliothèque.
+- Seuils de durée approximatifs en nombre de séances.
