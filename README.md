@@ -44,3 +44,7 @@ Chaque fiche de musculation dispose de son propre chrono : durée réglable par 
 
 ## V21 — Écran toujours allumé
 Pendant l’utilisation, l’écran du téléphone reste allumé (API Screen Wake Lock). Case « Garder l’écran allumé » dans Musculation > Réglages de la séance. Demande Chrome/Android ou Safari iOS 16.4 et plus ; sinon règle la mise en veille du téléphone sur « jamais ».
+
+## V22
+- Test de départ guidé (fiche, démonstration, compteur, repos, niveau proposé automatiquement).
+- Illustrations animées dans l’encart de titre de chaque exercice (dessinées pour l’application ; les photos du livre ne sont pas reprises). Sans illustration : N, N1, L, Q, Q1, Q2, V, Y, Z, A10, A11.

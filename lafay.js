@@ -53,7 +53,8 @@ function reset(){state.session.plan=null}
 function goalTxt(e){const u=e.unit==='s'?' s':'',t=e.tg;if(t.every(x=>x===t[0]))return t[0]?`${e.sets} séries × ${t[0]}${u}`:`${e.sets} séries au maximum`;return `${e.sets} séries : ${t.map(x=>x||'max').join(' · ')}${u}`}
 function goalHtml(e){return `<div class="goal"><div class="goal-main"><small>OBJECTIF</small><b>${esc(goalTxt(e))}</b></div></div>`}
 function how(e){return (e.codes||[e.code]).map(c=>{const x=DS[c];return x?`<p><b>${esc(c)}</b> · ${esc(x[0])}<br>${esc(x[1])}</p>${x[2]?`<p class="lf-tip">⚠ ${esc(x[2])}</p>`:''}`:''}).join('')}
-function cardHtml(e){const h=how(e);return `<article class="exercise mcard" data-mcard="${e.id}"><div class="lcode"><b>${esc(e.code)}</b><small>${esc(e.zone.replace('Livre « Musculation », ',''))}</small></div><div class="exercise-copy"><h3>${esc(e.name)}</h3>${e.zone?`<p class="meta">${esc(e.zone)}</p>`:''}${e.desc?`<p class="exercise-description"><b>Programme :</b> ${esc(e.desc)}</p>`:''}<p><b>Rythme et repos :</b> ${esc(e.tip)}</p>${h?`<details class="lf-how"><summary>Comment faire cet exercice</summary>${h}</details>`:''}<div data-mgoal="${e.id}"></div><div data-msets="${e.id}"></div><div data-mlive="${e.id}"></div></div></article>`}
+function fig(codes,zone){const c=(codes||[]).find(x=>window.Demo&&Demo.data&&Demo.data['l_'+x]);return c?`<figure class="demo" data-ex="l_${esc(c)}"></figure>`:`<div class="lcode"><b>${esc(codes[0])}</b><small>${esc(zone||'')}</small></div>`}
+function cardHtml(e){const h=how(e);return `<article class="exercise mcard" data-mcard="${e.id}">${fig(e.codes||[e.code],e.zone.replace('Livre « Musculation », ',''))}<div class="exercise-copy"><h3>${esc(e.name)}</h3>${e.zone?`<p class="meta">${esc(e.zone)}</p>`:''}${e.desc?`<p class="exercise-description"><b>Programme :</b> ${esc(e.desc)}</p>`:''}<p><b>Rythme et repos :</b> ${esc(e.tip)}</p>${h?`<details class="lf-how"><summary>Comment faire cet exercice</summary>${h}</details>`:''}<div data-mgoal="${e.id}"></div><div data-msets="${e.id}"></div><div data-mlive="${e.id}"></div></div></article>`}
 
 const NUM=['st','cI','stepB','stepI1'];
 const A3_6=[['A3','A3'],['A4','A4'],['A5','A5'],['A6','A6']],S15=[[1,'1 (8 rép.)'],[2,'2 (12 rép.)'],[3,'3 (15 rép.)'],[4,'4 (20 rép.)'],[5,'5 (25 rép.)']];
@@ -68,9 +69,9 @@ const OPTS=[
  {lv:['N12','N12B','N12T'],k:'b25',t:'chk',l:'B à la place de B2 (25 rép. ou plus à B)'},
  {lv:['N8'],k:'stepB',l:'Étape technique B',o:S15},{lv:['N8'],k:'stepI1',l:'Étape technique I1',o:S15}];
 
-function card(){const z=Z(),L=z.lvl&&LV(z.lvl),c=ctx();
+function card(){if(window.TG&&TG.active())return TG.html();const z=Z(),L=z.lvl&&LV(z.lvl),c=ctx();
   const lvOpts=D.LEVELS.map(l=>`<option value="${l.id}"${l.id===z.lvl?' selected':''}>${esc(l.label)}</option>`).join('');
-  const wiz=`<div class="lf-wiz"><p class="muted">${esc(D.TEST.note)}</p><div class="lf-test">${D.TEST.ex.map(x=>`<label>${x}<input type="number" min="0" max="999" inputmode="numeric" id="lf-t${x}" placeholder="rép."></label>`).join('')}</div><p class="muted">Résultat de l’exercice B : 0 à 4 rép. → niveau 1, premier programme · 5 à 7 → niveau 1, deuxième programme · 8 ou plus → niveau 2.</p><button class="primary-btn full" data-lf="test">Calculer mon niveau</button><label class="lf-lab">Ou choisis directement ton niveau<select data-lf-lvl><option value="">—</option>${lvOpts}</select></label></div>`;
+  const wiz=`<div class="lf-wiz"><button class="primary-btn full" data-tg="start">Faire le test guidé (recommandé)</button><p class="muted">${esc(D.TEST.note)}</p><p class="muted"><b>Ou saisie manuelle :</b></p><div class="lf-test">${D.TEST.ex.map(x=>`<label>${x}<input type="number" min="0" max="999" inputmode="numeric" id="lf-t${x}" placeholder="rép."></label>`).join('')}</div><p class="muted">Résultat de l’exercice B : 0 à 4 rép. → niveau 1, premier programme · 5 à 7 → niveau 1, deuxième programme · 8 ou plus → niveau 2.</p><button class="primary-btn full" data-lf="test">Calculer mon niveau</button><label class="lf-lab">Ou choisis directement ton niveau<select data-lf-lvl><option value="">—</option>${lvOpts}</select></label></div>`;
   if(!L)return `<div class="card lf"><p class="eyebrow">MÉTHODE LAFAY</p><h3>Test de départ</h3>${wiz}</div>`;
   const S=L.sessions,si=ensure()?state.session.plan.si:0;
   const pick=S.length>1?`<div class="lf-pick">${S.map((s,i)=>`<button class="${i===si?'primary-btn':'secondary'}" data-lf-pick="${i}">${esc(s.name)}</button>`).join('')}</div>`:'';
@@ -115,16 +116,26 @@ function setLevel(to){const z=Z();
   if(to==='N8'){const S=sessionsOf('N7'),l=S[S.length-1];const stp=c=>{const d=l&&l.details.find(x=>x.id===c);if(!d)return 1;const m=d.sets.slice(0,4).reduce((a,x)=>a+x.d,0)/4;return m>13?4:m>=11?3:m>=8?2:1};z.stepB=stp('B');z.stepI1=stp('I1')}
   z.lvl=to;z.start=Date.now();z.pick=null;z.free=false;if(to==='N1P1'){z.st=0;z.cI=-1}
   state.session={logs:{}};return true}
-function doTest(){const z=Z(),g=c=>{const v=document.getElementById('lf-t'+c);return v&&v.value!==''?Math.max(0,Math.round(+v.value)):null};
-  const r={A:g('A'),B:g('B'),C:g('C'),A1:g('A1')};if(r.B==null){toast('Indique au moins ton résultat à l’exercice B.');return}
+function applyTest(r){const z=Z();
+  if(r.B==null)return {label:'Aucun changement',lines:['Le résultat de l’exercice B est indispensable pour déterminer ton niveau : ton programme n’a pas été modifié.']};
   const retest=z.lvl==='N1P1'&&(+z.st)>=5;let to,msg;
   if(retest){if(r.B>=9)to='N2';else if(r.B>=5)to='N1P2';else{to='N1P1';z.st=6;msg='B < 5 : séance B1, A6, A2… pendant 2 semaines, puis deuxième programme.'}}
   else to=r.B>=8?'N2':r.B>=5?'N1P2':'N1P1';
   const label=LV(to).label;
   const det=Object.entries(r).filter(([,v])=>v!=null).map(([c,v])=>({id:c,name:'Test '+c,unit:'reps',sets:[{t:0,d:v}]}));
-  if(!setLevel(to))return;if(msg)z.st=6;
+  state.session={logs:{}};
+  z.lvl=to;z.start=Date.now();z.pick=null;z.free=false;if(to==='N1P1'&&!msg){z.st=0;z.cI=-1}if(msg)z.st=6;
   state.history.push({type:'test',date:new Date().toLocaleString('fr-FR'),summary:'Test : '+Object.entries(r).filter(([,v])=>v!=null).map(([c,v])=>c+' '+v).join(' · ')+' → '+label,details:det});
-  state.lafay.test={...r,date:Date.now()};save();renderTraining();renderProgress();toast(msg||('Niveau conseillé : '+label))}
+  state.lafay.test={...r,date:Date.now()};save();renderTraining();renderProgress();
+  return {label,lines:[`Résultat de l’exercice B : ${r.B} répétition${r.B>1?'s':''} (0 à 4 : niveau 1 premier programme · 5 à 7 : niveau 1 deuxième programme · 8 ou plus : niveau 2).`].concat(msg?[msg]:[])}}
+function doTest(){const g=c=>{const v=document.getElementById('lf-t'+c);return v&&v.value!==''?Math.max(0,Math.round(+v.value)):null};
+  const r={A:g('A'),B:g('B'),C:g('C'),A1:g('A1')};if(r.B==null){toast('Indique au moins ton résultat à l’exercice B.');return}
+  if(hasLogs()&&!confirm('Les séries déjà notées pour la séance en cours seront perdues. Continuer ?'))return;
+  const o=applyTest(r);toast(o.label)}
+const TITLES={A:'Pompes (exercice A)',B:'Dips (exercice B)',C:'Tractions (exercice C)',A1:'Pompes sur chaises (exercice A1)'};
+function testCfg(){return {title:'Test de départ Lafay',intro:'Fais chaque exercice une seule fois, à fond, après ton échauffement. Note le nombre de répétitions réussies. Ton niveau est déterminé surtout par l’exercice B.',rest:D.TEST.rest||180,
+  steps:D.TEST.ex.map(c=>({key:c,code:c,title:TITLES[c]||('Exercice '+c),demo:c==='A'?'pompes':null,note:'Une série au maximum, mouvement complet et propre. '+(c==='B'?'C’est l’exercice qui décide de ton niveau.':'')}))}}
+function testApply(v){if(hasLogs()&&!confirm('Les séries déjà notées pour la séance en cours seront perdues. Continuer ?'))return {label:'Aucun changement',lines:[]};return applyTest(v)}
 function apply(i){const s=suggestions()[i];if(!s)return;const a=s.a,z=Z();
   if(a.test){const d=document.querySelector('.lf-more');if(d){d.open=true;d.scrollIntoView({behavior:'smooth'})}return}
   if(a.lvl){if(!setLevel(a.lvl))return}else if(a.set){if(hasLogs()){toast('Termine ou valide ta séance en cours avant de changer ce réglage.');return}Object.assign(z,a.set);reset()}
@@ -138,7 +149,7 @@ document.addEventListener('change',e=>{const t=e.target,z=()=>state.lafay;
   if(t.matches('[data-lf-free]')){if(hasLogs()&&!confirm('Les séries déjà notées pour la séance en cours seront perdues. Continuer ?')){t.checked=z().free;return}state.session={logs:{}};z().free=t.checked;save();renderTraining();return}
   if(t.matches('[data-lf-set]')){if(hasLogs()){toast('Termine ou valide ta séance en cours avant de changer ce réglage.');renderTraining();return}const k=t.dataset.lfSet;z()[k]=t.type==='checkbox'?t.checked:(NUM.includes(k)?Number(t.value):t.value);reset();save();renderTraining()}});
 
-function libHtml(q){q=(q||'').toLowerCase();const keys=Object.keys(DS).sort((a,b)=>(a[0]<b[0]?-1:a[0]>b[0]?1:(parseInt(a.slice(1))||0)-(parseInt(b.slice(1))||0)));return keys.filter(c=>(c+' '+DS[c][0]+' '+DS[c][1]).toLowerCase().includes(q)).map(c=>`<article class="exercise"><div class="lcode"><b>${esc(c)}</b><small>${pg(c)?'p. '+pg(c):''}</small></div><div class="exercise-copy"><h3>Exercice ${esc(c)}</h3><p class="meta">${esc(DS[c][0])}</p><p class="exercise-description">${esc(DS[c][1])}</p>${DS[c][2]?`<p class="lf-tip">⚠ ${esc(DS[c][2])}</p>`:''}</div></article>`).join('')}
-window.LF={libHtml,active,ensure,exes,ex,tOf,card,cardHtml,goalHtml,goalTxt,short,label:()=>{const z=Z();return z.lvl?LV(z.lvl).label:''},
+function libHtml(q){q=(q||'').toLowerCase();const keys=Object.keys(DS).sort((a,b)=>(a[0]<b[0]?-1:a[0]>b[0]?1:(parseInt(a.slice(1))||0)-(parseInt(b.slice(1))||0)));return keys.filter(c=>(c+' '+DS[c][0]+' '+DS[c][1]).toLowerCase().includes(q)).map(c=>`<article class="exercise">${fig([c],pg(c)?'p. '+pg(c):'')}<div class="exercise-copy"><h3>Exercice ${esc(c)}</h3><p class="meta">${esc(DS[c][0])}</p><p class="exercise-description">${esc(DS[c][1])}</p>${DS[c][2]?`<p class="lf-tip">⚠ ${esc(DS[c][2])}</p>`:''}</div></article>`).join('')}
+window.LF={testCfg,testApply,libHtml,active,ensure,exes,ex,tOf,card,cardHtml,goalHtml,goalTxt,short,label:()=>{const z=Z();return z.lvl?LV(z.lvl).label:''},
   afterSession(){const z=Z();z.pick=null},LV,sessionsOf};
 })();
