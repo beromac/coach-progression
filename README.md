@@ -41,3 +41,6 @@ Chaque fiche de musculation dispose de son propre chrono : durée réglable par 
 - Objectif de répétitions qui évolue (+1 par séance, record à battre) et propositions de passage de niveau selon tes répétitions notées.
 - V20 : fiche de chaque exercice (muscles, position, respiration, conseils), résumée d'après les pp. 138-213 du livre ; visible sur chaque carte (« Comment faire cet exercice ») et dans la Bibliothèque.
 - Seuils de durée approximatifs en nombre de séances.
+
+## V21 — Écran toujours allumé
+Pendant l’utilisation, l’écran du téléphone reste allumé (API Screen Wake Lock). Case « Garder l’écran allumé » dans Musculation > Réglages de la séance. Demande Chrome/Android ou Safari iOS 16.4 et plus ; sinon règle la mise en veille du téléphone sur « jamais ».
