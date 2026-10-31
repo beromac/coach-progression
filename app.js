@@ -173,7 +173,7 @@ function runStop(){if(run.int){clearInterval(run.int);run.int=null}}
 function runClear(){runStop();document.querySelectorAll('.tcard.current').forEach(c=>c.classList.remove('current'));document.querySelectorAll('[data-tstart]').forEach(b=>b.textContent='Lancer le chrono');run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar()}
 function updateBar(){document.querySelectorAll('[data-tbarstat]').forEach(el=>{const k=el.dataset.tbarstat;el.textContent=run.kind===k&&run.id?`En cours : ${exById(run.id).name.replace(/^\d+\.\s*/,'')} — ${fmt(run.left)}${run.paused?' (pause)':''}`:''});document.querySelectorAll('[data-tchain]').forEach(b=>{const k=b.dataset.tchain;b.textContent=run.kind===k&&run.chain?(run.paused?'▶ Reprendre':'⏸ Pause'):'▶ Lancer la séance enchaînée'})}
 function runTick(){
-  run.left--;const c=$(`[data-tclock="${run.id}"]`);if(c)c.textContent=fmt(Math.max(0,run.left));updateBar();
+  run.left--;if(run.left>0&&run.left<=3)beep(880);const c=$(`[data-tclock="${run.id}"]`);if(c)c.textContent=fmt(Math.max(0,run.left));updateBar();
   if(run.left<=0){const {kind,id,chain}=run;runStop();done[kind].add(id);beep(1000);const card=$(`[data-tcard="${id}"]`);if(card){card.classList.remove('current');card.classList.add('finished');const s=$(`[data-tstatus="${id}"]`);if(s)s.textContent='✓ fait'}
     const b=$(`[data-tstart="${id}"]`);if(b)b.textContent='Relancer';
     if(chain){const ids=selection(kind),i=ids.indexOf(id);if(i<ids.length-1)runStart(kind,ids[i+1],true);else{run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar();beep(1400);toast('Séance terminée ! Pense à la sauvegarder.')}}else{run={kind:null,id:null,left:0,int:null,chain:false,paused:false};updateBar()}}

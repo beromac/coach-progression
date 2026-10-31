@@ -48,3 +48,7 @@ Pendant l’utilisation, l’écran du téléphone reste allumé (API Screen Wak
 ## V22
 - Test de départ guidé (fiche, démonstration, compteur, repos, niveau proposé automatiquement).
 - Illustrations animées dans l’encart de titre de chaque exercice (dessinées pour l’application ; les photos du livre ne sont pas reprises). Sans illustration : N, N1, L, Q, Q1, Q2, V, Y, Z, A10, A11.
+
+## V23
+- Sons réparés (débloqués au premier toucher, vibration en complément, bip des 3 dernières secondes).
+- Nouvelle illustration de coach (accueil, en-tête, icône).
